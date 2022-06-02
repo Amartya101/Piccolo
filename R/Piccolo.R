@@ -1015,7 +1015,7 @@ ComputePC <- function(X,TopFeatures,Barcode,NoOfPC =  50,Out = T){
 #' @export
 #' @param X A character variable. Specifies the name of the .csv file containing the principal components obtained using the \link[Piccolo]{ComputePC} function
 #' @param Out A logical variable. Specifies whether to return an output file (.csv) with the normalized values (if set to T), or not (if set to F). Default is T
-#' @return A data frame containing the coordinates of the cells for the first 3 UMAP dimensions.
+#' @return A data frame containing the coordinates of the cells in the first 2 UMAP dimensions.
 #' @examples
 #' \dontrun{
 #' UMAPCoords(X = "10X_PBMC3k_logTransformedStandardizedCounts_Top50PrinComp.csv",
@@ -1032,7 +1032,7 @@ UMAPCoords <- function(X,Out = T){
 
   x <- umap::umap(PC.Mat)
 
-  UMAP.df <- data.frame(CellID = rownames(x$layout),UMAP1  = x$layout[,1], UMAP2 = x$layout[,2], UMAP3 = x$layout[,3])
+  UMAP.df <- data.frame(CellID = rownames(x$layout),UMAP1  = x$layout[,1], UMAP2 = x$layout[,2])
 
   if (Out == T){
     FileName <- paste0(substr(X,1,nchar(X)-4),"_UMAPCoords.csv")
@@ -1060,8 +1060,6 @@ UMAPCoords <- function(X,Out = T){
 LabelUMAP <- function(X,Labels,Levels = NULL,Alpha = 0.7,Size = 0.9){
 
   UMAP.Coord.df <- data.table::fread(X)
-
-  UMAP.Coord.df <- UMAP.Coord.df[,-4]
 
   if (length(Labels) != length(UMAP.Coord.df$CellID)){
     stop("The length of the Labels vector provided does not match the number of cells in the UMAP.")
