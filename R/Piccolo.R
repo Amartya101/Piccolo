@@ -478,10 +478,14 @@ StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = "log", 
 
     Zero.Count.Features <- Gene.IDs[Zero.Count.Features,1]
 
-    Top.Features <- FeatureSelect(X = UMI.Mat,GeneID = Gene.IDs,Min.Perc.Non.Zero.Cells = 0.5)
+    Top.Features <- FeatureSelect(X = UMI.Mat,GeneID = Gene.IDs,Reference  = ReferenceLevel,Min.Perc.Non.Zero.Cells = MinPercNonZero)
 
     if (is.null(VarFeatures)){
-      VarFeatures <- length(Top.Features)
+      if (length(dim(Top.Features)) > 1){
+        VarFeatures <- length(Top.Features[,1])
+      } else {
+        VarFeatures <- length(Top.Features)
+      }
     }
 
     if (length(dim(Top.Features)) > 1){
@@ -626,7 +630,7 @@ colOverdispQPCoef <- function(X,alternative = "greater"){
 }
 
 #Function to shortlist highly variable features
-FeatureSelect <- function(X,GeneID,Reference = NULL,Min.Perc.Non.Zero.Cells = 1){
+FeatureSelect <- function(X,GeneID,Reference,Min.Perc.Non.Zero.Cells){
 
   if (is.null(Reference)){
     Reference <- 0.5
