@@ -427,7 +427,11 @@ StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = "log", 
     Top.Features <- FeatureSelect(X = UMI.Mat,Reference = ReferenceLevel,GeneID = Gene.IDs,Min.Perc.Non.Zero.Cells = MinPercNonZero)
 
     if (is.null(VarFeatures)){
-      VarFeatures <- length(Top.Features)
+      if (length(dim(Top.Features)) > 1){
+        VarFeatures <- length(Top.Features[,1])
+      } else {
+        VarFeatures <- length(Top.Features)
+      }
     }
 
     if(length(dim(Top.Features)) > 1){
