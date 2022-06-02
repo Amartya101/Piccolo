@@ -341,7 +341,7 @@ CombineMTX <- function(Path,MinFeaturesPerCell = 200, MT.Perc = 10,RP.Perc = 70)
 #'  BinaryMatrix = "10X_PBMC3k_barcodes.tsv",
 #'  ReferenceLevel = 0.3,MinPercNonZero = 0.5,Out = T)
 #' }
-StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = c("log","yj","arccosh"), Batch=NULL,ReferenceLevel = NULL,MinPercNonZero = 1,Out = F){
+StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = "log", Batch=NULL,ReferenceLevel = NULL,MinPercNonZero = 1,Out = F){
 
   message("Importing files...")
 
@@ -354,7 +354,7 @@ StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = c("log"
   Barcodes <- read.delim(Barcode,header = F,stringsAsFactors = F)
   Barcodes <- Barcodes$V1
 
-  TransformType <- match.arg(Transform)
+  TransformType <- Transform
 
   if(is.null(Batch)){
 
@@ -459,7 +459,6 @@ StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = c("log"
 
     if (Out == T){
       FileName <- paste0(Transform,"TransformedStandardizedCounts.csv")
-      #data.table::fwrite(data.frame(Gene.ID = rownames(Std.Mat),Std.Mat),file = FileName,row.names = F,col.names = T,sep = ",")
       data.table::fwrite(data.frame(Std.Mat),file = FileName,row.names = F,col.names = F,sep = ",")
     }
     return(Std.Mat)
@@ -718,7 +717,7 @@ FeatureSelect <- function(X,GeneID,Reference = NULL,Min.Perc.Non.Zero.Cells = 1)
 }
 
 #Function to prepare standardized counts
-Standardize <- function(X,Transform = "log",SF){
+Standardize <- function(X,Transform,SF){
 
   if (Transform == "log"){
 
