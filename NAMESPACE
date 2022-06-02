@@ -3,6 +3,7 @@
 export(CombineMTX)
 export(ComputePC)
 export(ConvertToMTX)
+export(DEfeatures)
 export(LabelUMAP)
 export(MaxMinNormMat)
 export(StandardizeMat)

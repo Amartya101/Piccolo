@@ -7,9 +7,9 @@
 MaxMinNormMat(X, TopFeatures, Barcode, Out = F)
 }
 \arguments{
-\item{X}{A character variable. Specifies the name of the .csv file containing the standardized values obtained from the \link[Piccolo]{StandardizeMat}}
+\item{X}{A character variable. Specifies the name of the .csv file containing the standardized values obtained from the \link[Piccolo]{StandardizeMat} function}
 
-\item{TopFeatures}{A character variable. Specifies the name of the .csv file containing the list of genes that were shortlisted as highly variable by the}
+\item{TopFeatures}{A character variable. Specifies the name of the .csv file containing the list of genes that were shortlisted as highly variable by the \link[Piccolo]{StandardizeMat} function}
 
 \item{Barcode}{A character variable. Specifies the name of the barcodes file (.tsv format)}
 

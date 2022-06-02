@@ -864,8 +864,8 @@ Standardize <- function(X,Transform = "log",SF){
 #' @title  Max-Min Normalization Function
 #' @description  This function will normalize the standardized values to normalized values in the range 0-1
 #' @export
-#' @param X A character variable. Specifies the name of the .csv file containing the standardized values obtained from the \link[Piccolo]{StandardizeMat}
-#' @param TopFeatures A character variable. Specifies the name of the .csv file containing the list of genes that were shortlisted as highly variable by the
+#' @param X A character variable. Specifies the name of the .csv file containing the standardized values obtained from the \link[Piccolo]{StandardizeMat} function
+#' @param TopFeatures A character variable. Specifies the name of the .csv file containing the list of genes that were shortlisted as highly variable by the \link[Piccolo]{StandardizeMat} function
 #' @param Barcode A character variable. Specifies the name of the barcodes file (.tsv format)
 #' @param Out A logical variable. Specifies whether to return an output file (.csv) with the normalized values (if set to T), or not (if set to F). Default is F
 #' @return A numeric matrix containing the standardized values.
@@ -896,6 +896,72 @@ MaxMinNormMat <- function(X,TopFeatures,Barcode,Out = F){
     data.table::fwrite(Norm.df,file = FileName,row.names = F,col.names = F,sep = ",")
   }
   return(Norm.Mat)
+}
+
+#' @title  Identify differentially expressed between 2 groups of cells
+#' @description  This function performs differential expression analysis (using the Mann-Whitney test) between 2 groups of cells provided by the user
+#' @export
+#' @param X A character variable. Specifies the name of the .csv file containing the standardized values obtained from the \link[Piccolo]{StandardizeMat} function
+#' @param TopFeatures A character variable. Specifies the name of the .csv file containing the list of genes that were shortlisted as highly variable by the \link[Piccolo]{StandardizeMat} function
+#' @param Barcode A character variable. Specifies the name of the barcodes file (.tsv format)
+#' @param Group1 A character vector. Specifies the barcodes of cells in group 1
+#' @param Group2 A character vector. Specifies the barcodes of cells in group 2
+#' @param Out A logical variable. Specifies whether to return an output file (.csv) with the differential expression result (if set to T), or not (if set to F). Default is F
+#' @return A data frame containing the gene IDs, the log2 fold change (FC) of normalized values between group 1 and group 2 (positive FC indicates higher expression in group 1), the p-values from the Mann-Whitney test, and the adjusted p-values (p-adj) after Benjamini-Hochberg correction
+#' @examples
+#' \dontrun{
+#' DEfeatures(X = "10X_PBMC3k_logTransformedStandardizedCounts.csv",
+#' TopFeatures = "TopFeatures10X_PBMC3k_matrix.csv",
+#' Barcode = "10X_PBMC3k_barcodes.tsv",
+#' Group1 = c("Barcode1","Barcode23","Barcode47",..),
+#' Group2 = c("Barcode3,"Barcode7, "Barcode11",..)
+#' Out = T)
+#' }
+
+DEfeatures <- function(X,TopFeatures,Barcode,Group1,Group2,Out = F){
+  Std.Mat <- as.matrix(data.table::fread(X))
+
+  Features <- read.csv(TopFeatures)
+  Features <- Features$x
+
+  Barcodes <- read.delim(Barcode,header = F,stringsAsFactors = F)
+  Barcodes <- Barcodes$V1
+
+  Barcodes <- gsub(".","-",Barcodes,fixed = T)
+
+  Group1 <- which(Barcodes %in% Group1)
+  Group2 <- which(Barcodes %in% Group2)
+
+  rownames(Std.Mat) <- Features
+  colnames(Std.Mat) <- Barcodes
+
+  Norm.Mat <- t(apply(Std.Mat,1,function(x) (x- min(x))/(max(x) - min(x))))
+
+  log2FC.vec <- rep(1,nrow(Norm.Mat))
+  p.val.vec <- rep(1,nrow(Norm.Mat))
+  Base.Mean.vec <- rep(1,nrow(Norm.Mat))
+  for (i in 1:length(p.val.vec))
+  {
+    log2FC.vec[i] <- log2(mean(Norm.Mat[i,Group1])/mean(Norm.Mat[i,Group2]))
+    Base.Mean.vec[i] <- mean(Norm.Mat[i,])
+    p.val.vec[i] <- wilcox.test(Norm.Mat[i,Group1],Norm.Mat[i,Group2])$p.val
+  }
+
+  p.val.vec <- p.val.vec[order(log2FC.vec,decreasing = T)]
+  p.adj.vec <- p.adjust(p.val.vec,method = "BH")
+  Genes <- Features[order(log2FC.vec,decreasing = T)]
+  Base.Mean.vec <- Base.Mean.vec[order(log2FC.vec,decreasing = T)]
+  log2FC.vec <- log2FC.vec[order(log2FC.vec,decreasing = T)]
+
+  DE.Res.df <- data.frame(Genes,Base.Mean.vec,log2FC.vec,p.val.vec,p.adj.vec)
+  colnames(DE.Res.df) <- c("Gene","BaseMean","log2FC","p.val","p.adj")
+
+  if (Out == T){
+    FileName <- paste0(substr(X,1,nchar(X)-4),"DEGenes",".csv")
+    data.table::fwrite(DE.Res.df,file = FileName,row.names = F,col.names = F,sep = ",")
+  }
+
+  return(DE.Res.df)
 }
 
 #' @title  Compute Principal Components
@@ -973,8 +1039,9 @@ UMAPCoords <- function(X,Out = T){
 #' @export
 #' @param X A character variable. Specifies the name of the .csv file containing the UMAP coordinates obtained from the \link[Piccolo]{UMAPCoords} function
 #' @param Labels A character vector. Should contain the character labels for cells in the same order as the cells in the counts matrix
-#' @param Levels An optional character vector. Should specify the unique labels in the order in which the labels of the cells should be presented.
-
+#' @param Levels An optional character vector. Should specify the unique labels in the order in which the labels of the cells should be presented
+#' @param Alpha A numeric variable (strictly greater than 0). Specified the transparency of the dots on the UMAP plot. Default Alpha = 0.7
+#' @param Size A numeric variable (strictly greater than 0). Specified the size of the dots on the UMAP plot. Default Size = 0.9
 #' @return A ggplot2 object
 #' @examples
 #' \dontrun{
@@ -983,7 +1050,7 @@ UMAPCoords <- function(X,Out = T){
 #' Levels = c("b-cells","cd14 monocytes","dendritic","NK cells","naive cytotoxic"))
 #' }
 
-LabelUMAP <- function(X,Labels,Levels = NULL){
+LabelUMAP <- function(X,Labels,Levels = NULL,Alpha = 0.7,Size = 0.9){
 
   UMAP.Coord.df <- data.table::fread(X)
 
@@ -1002,7 +1069,7 @@ LabelUMAP <- function(X,Labels,Levels = NULL){
   }
 
   p <- ggplot2::ggplot(plot_data,ggplot2::aes(UMAP_1, UMAP_2)) +
-    ggplot2::geom_point(ggplot2::aes(color=Label),alpha = 0.7,size = 0.9) +
+    ggplot2::geom_point(ggplot2::aes(color=Label),alpha = Alpha,size = Size) +
     ggplot2::theme_bw() +
     ggplot2::theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
