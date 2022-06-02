@@ -341,7 +341,7 @@ CombineMTX <- function(Path,MinFeaturesPerCell = 200, MT.Perc = 10,RP.Perc = 70)
 #'  BinaryMatrix = "10X_PBMC3k_barcodes.tsv",
 #'  ReferenceLevel = 0.3,MinPercNonZero = 0.5,Out = T)
 #' }
-StandardizeMat <- function(X,Gene,Barcode,VarFeatures,Transform = c("log","yj","arccosh"), Batch=NULL,ReferenceLevel = NULL,MinPercNonZero = 1,Out = F){
+StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = c("log","yj","arccosh"), Batch=NULL,ReferenceLevel = NULL,MinPercNonZero = 1,Out = F){
 
   message("Importing files...")
 
