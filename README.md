@@ -23,7 +23,7 @@ devtools::install_github("Amartya101/Piccolo")
 
 ## License
 
-This project is licensed under the GNUv3 License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the GPL-3.0 License - see the [LICENSE.md](LICENSE.md) file for details
 
 ## Acknowledgments
 * Hossein Khiabanian - [Khiabanian Lab](https://khiabanian-lab.org)
