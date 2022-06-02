@@ -1026,7 +1026,7 @@ UMAPCoords <- function(X,Out = T){
   PC.df <- data.table::fread(X)
 
   PC.Mat <- as.matrix(PC.df[,-1])
-  rownames(PC.Mat.TopPC) <- PC.df$V1
+  rownames(PC.Mat) <- PC.df$V1
 
   rm(PC.df)
 
