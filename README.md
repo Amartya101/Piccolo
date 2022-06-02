@@ -5,7 +5,7 @@ An R package for processing and analyzing single-cell transcriptomic data (manus
 
 You will need an R version 3.4.0 or more recent in order to use the package.
 
-### Installing
+### Installation
 
 Currently, the development version of **Piccolo** can be installed using *install_github* from the **devtools** package.
 
