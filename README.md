@@ -27,7 +27,7 @@ The *CreatePiccoloList* function requires the following inputs - *X*, *Gene*, *B
 Here is an example of a valid function call
 
 ```
-PiccList <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx", Gene = "10X_PBMC3k_features.tsv", Barcode = "10X_PBMC3k_barcodes.tsv", RP.Perc = 80)
+pbmc3k <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx", Gene = "10X_PBMC3k_features.tsv", Barcode = "10X_PBMC3k_barcodes.tsv", RP.Perc = 80)
 ```
 This will create a list that contains the counts matrix, the features data frame, and the barcodes.
 
@@ -39,8 +39,8 @@ The *Normalize* function has 5 arguments - *PiccoloList*, *VarFeatures*, *Transf
 
 Examples of valid function calls are provided below:
 ```
-PiccList <- Normalize(X = PiccList)
-PiccList <- Normalize(X = PiccList,
+pbmc3k <- Normalize(PiccoloList = PiccList)
+pbmc3k <- Normalize(PiccoloList = pbmc3k,
 ReferenceLevel = 0.3,MinPercNonZero = 0.5,Out = T)
 ```
 
@@ -50,10 +50,10 @@ After the normalized counts have been obtained using the *Normalize* function, w
 
 Examples of valid function calls:
 ```
-PiccList <- ComputePC(PiccoloList = PiccList)
-PiccList <- ComputePC(PiccoloList = PiccList,NoOfPC = 20,Out = T) # for Top 20 PCs, and will generate an output .csv file containing the PCs
+pbmc3k <- ComputePC(PiccoloList = pbmc3k)
+pbmc3k <- ComputePC(PiccoloList = pbmc3k,NoOfPC = 20,Out = T) # for Top 20 PCs, and will generate an output .csv file containing the PCs
 
-PiccList <- UMAPcoords(PiccoloList = PiccList)
+pbmc3k <- UMAPcoords(PiccoloList = pbmc3k)
 ```
 
 ### Label cells on UMAP
@@ -61,7 +61,7 @@ This function can be used to make the UMAP plots and color the cells based on la
 
 Example of a valid function call is provided below:
 ```
-p <- LabelUMAP(PiccoloList = PiccList,
+p <- LabelUMAP(PiccoloList = pbmc3k,
 Labels = c("b-cells","b-cells",..,"cd14 monocytes",..,"NK cells",..),
 Levels = c("b-cells","cd14 monocytes","dendritic","NK cells","naive cytotoxic"))
 
