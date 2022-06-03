@@ -1074,7 +1074,7 @@ DEfeatures <- function(PiccoloList,Group1,Group2,Out = F){
 #' PiccList <- ComputePC(PiccoloList = PiccList)
 #' PiccList <- ComputePC(PiccoloList = PiccList,NoOfPC = 20,Out = T)
 #' }
-ComputePC <- function(PiccoloList,NoOfPC =  50,Out = T){
+ComputePC <- function(PiccoloList,NoOfPC =  50,Out = F){
   Std.Mat <- PiccoloList$NormCounts
 
   Features <- PiccoloList$VariableFeatures
@@ -1110,7 +1110,7 @@ ComputePC <- function(PiccoloList,NoOfPC =  50,Out = T){
 #' PiccList <- UMAPcoords(PiccoloList = PiccList,
 #' Out = T)
 #' }
-UMAPcoords <- function(PiccoloList,Out = T){
+UMAPcoords <- function(PiccoloList,Out = F){
 
   PC.Mat <- as.matrix(PiccoloList$PCmat)
 
