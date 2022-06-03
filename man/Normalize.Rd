@@ -37,8 +37,8 @@ This function performs feature selection and prepares standardized counts matrix
 }
 \examples{
 \dontrun{
-PiccList <- Normalize(X = PiccList)
-PiccList <- Normalize(X = PiccList,
+pbmc3k <- Normalize(PiccoloList = pbmc3k)
+pbmc3k <- Normalize(PiccoloList = pbmc3k,
 ReferenceLevel = 0.3,MinPercNonZero = 0.5,Out = T)
 }
 }

@@ -4,7 +4,7 @@
 \alias{ComputePC}
 \title{Compute Principal Components}
 \usage{
-ComputePC(PiccoloList, NoOfPC = 50, Out = T)
+ComputePC(PiccoloList, NoOfPC = 50, Out = F)
 }
 \arguments{
 \item{PiccoloList}{A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} function}
@@ -21,7 +21,7 @@ This function will calculate the principal components for the matrix with the st
 }
 \examples{
 \dontrun{
-PiccList <- ComputePC(PiccoloList = PiccList)
-PiccList <- ComputePC(PiccoloList = PiccList,NoOfPC = 20,Out = T)
+pbmc3k <- ComputePC(PiccoloList = pbmc3k)
+pbmc3k <- ComputePC(PiccoloList = pbmc3k,NoOfPC = 20,Out = T)
 }
 }

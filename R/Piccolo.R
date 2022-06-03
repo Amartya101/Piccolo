@@ -336,7 +336,7 @@ CombineMTX <- function(Path,MinFeaturesPerCell = 200, MT.Perc = 10,RP.Perc = 70)
 #'  pbmc3k <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz",
 #'  Gene = "10X_PBMC3k_features.tsv",
 #'  Barcode = "10X_PBMC3k_barcodes.tsv"
-#'  MinFeaturesPerCell = 100, MT.Perc = 20,RP.Perc = 90)
+#'  MinFeaturesPerCell = 100, MT.Perc = 20,RP.Perc = 90) #changing the filtering criteria
 #' }
 
 CreatePiccoloList <- function(X,Gene,Barcode,MinFeaturesPerCell = 200,MT.Perc = 10,RP.Perc = 70){
@@ -991,7 +991,7 @@ Standardize <- function(X,Transform,SF){
 #' @examples
 #' \dontrun{
 #' NormMat <- MaxMinNormMat(PiccoloList = pbmc3k,
-#' Out = T)
+#' Out = F)
 #' }
 MaxMinNormMat <- function(PiccoloList,Out = F){
   Std.Mat <- PiccoloList$NormCounts

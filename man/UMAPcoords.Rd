@@ -4,7 +4,7 @@
 \alias{UMAPcoords}
 \title{UMAP coordinates}
 \usage{
-UMAPcoords(PiccoloList, Out = T)
+UMAPcoords(PiccoloList, Out = F)
 }
 \arguments{
 \item{PiccoloList}{A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} and the \link[Piccolo]{ComputePC} functions}
@@ -19,7 +19,7 @@ This function will run UMAP for the matrix with the principal components
 }
 \examples{
 \dontrun{
-PiccList <- UMAPcoords(PiccoloList = PiccList,
+pbmc3k <- UMAPcoords(PiccoloList = pbmc3k,
 Out = T)
 }
 }

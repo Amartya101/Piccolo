@@ -25,7 +25,7 @@ This function can be used to label (color) cells on the UMAP plot
 }
 \examples{
 \dontrun{
-p <- LabelUMAP(PiccoloList = PiccList,
+p <- LabelUMAP(PiccoloList = pbmc3k,
 Labels = c("b-cells","b-cells",..,"cd14 monocytes",..,"NK cells",..),
 Levels = c("b-cells","cd14 monocytes","dendritic","NK cells","naive cytotoxic"))
 }

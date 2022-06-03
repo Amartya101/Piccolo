@@ -23,7 +23,7 @@ This function performs differential expression analysis (using the Mann-Whitney 
 }
 \examples{
 \dontrun{
-DE.Genes.df <- DEfeatures(PiccoloList = PiccList,
+DE.Genes.df <- DEfeatures(PiccoloList = pbmc3k,
 Group1 = c("Barcode1","Barcode23","Barcode47",..),
 Group2 = c("Barcode3,"Barcode7, "Barcode11",..)
 Out = T)

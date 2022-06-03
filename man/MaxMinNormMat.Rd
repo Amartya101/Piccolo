@@ -19,7 +19,7 @@ This function will normalize the standardized values to normalized values in the
 }
 \examples{
 \dontrun{
-MaxMinNormMat(PiccoloList = PiccList,
-Out = T)
+NormMat <- MaxMinNormMat(PiccoloList = pbmc3k,
+Out = F)
 }
 }

@@ -34,12 +34,12 @@ This function creates a list object containing the counts matrix, the features (
 }
 \examples{
 \dontrun{
- PiccList <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz",
+ pbmc3k <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz",
  Gene = "10X_PBMC3k_features.tsv",
  Barcode = "10X_PBMC3k_barcodes.tsv")
- PiccList <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz",
+ pbmc3k <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz",
  Gene = "10X_PBMC3k_features.tsv",
  Barcode = "10X_PBMC3k_barcodes.tsv"
- MinFeaturesPerCell = 100, MT.Perc = 20,RP.Perc = 90)
+ MinFeaturesPerCell = 100, MT.Perc = 20,RP.Perc = 90) #changing the filtering criteria
 }
 }
