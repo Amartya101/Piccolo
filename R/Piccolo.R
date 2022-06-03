@@ -330,7 +330,7 @@ CombineMTX <- function(Path,MinFeaturesPerCell = 200, MT.Perc = 10,RP.Perc = 70)
 #' @return A list containing the counts matrix, the genes list, and the barcodes.
 #' @examples
 #' \dontrun{
-#'  PiccList <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz",
+#'  pbmc3k <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz",
 #'  Gene = "10X_PBMC3k_features.tsv",
 #'  Barcode = "10X_PBMC3k_barcodes.tsv")
 #'  pbmc3k <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz",
