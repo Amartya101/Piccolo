@@ -333,7 +333,7 @@ CombineMTX <- function(Path,MinFeaturesPerCell = 200, MT.Perc = 10,RP.Perc = 70)
 #'  PiccList <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz",
 #'  Gene = "10X_PBMC3k_features.tsv",
 #'  Barcode = "10X_PBMC3k_barcodes.tsv")
-#'  PiccList <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz",
+#'  pbmc3k <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz",
 #'  Gene = "10X_PBMC3k_features.tsv",
 #'  Barcode = "10X_PBMC3k_barcodes.tsv"
 #'  MinFeaturesPerCell = 100, MT.Perc = 20,RP.Perc = 90)
@@ -450,8 +450,8 @@ CreatePiccoloList <- function(X,Gene,Barcode,MinFeaturesPerCell = 200,MT.Perc = 
 #' @return A numeric matrix containing the normalized values.
 #' @examples
 #' \dontrun{
-#' PiccList <- Normalize(X = PiccList)
-#' PiccList <- Normalize(X = PiccList,
+#' pbmc3k <- Normalize(PiccoloList = pbmc3k)
+#' pbmc3k <- Normalize(PiccoloList = pbmc3k,
 #' ReferenceLevel = 0.3,MinPercNonZero = 0.5,Out = T)
 #' }
 Normalize <- function(PiccoloList,VarFeatures = NULL,Transform = "log", Batch=NULL,ReferenceLevel = NULL,MinPercNonZero = 1,Out = F){
@@ -990,7 +990,7 @@ Standardize <- function(X,Transform,SF){
 #' @return A numeric matrix containing the standardized values.
 #' @examples
 #' \dontrun{
-#' MaxMinNormMat(PiccoloList = PiccList,
+#' NormMat <- MaxMinNormMat(PiccoloList = pbmc3k,
 #' Out = T)
 #' }
 MaxMinNormMat <- function(PiccoloList,Out = F){
@@ -1015,7 +1015,7 @@ MaxMinNormMat <- function(PiccoloList,Out = F){
 #' @return A data frame containing the gene IDs, the log2 fold change (FC) of normalized values between group 1 and group 2 (positive FC indicates higher expression in group 1), the p-values from the Mann-Whitney test, and the adjusted p-values (p-adj) after Benjamini-Hochberg correction
 #' @examples
 #' \dontrun{
-#' DE.Genes.df <- DEfeatures(PiccoloList = PiccList,
+#' DE.Genes.df <- DEfeatures(PiccoloList = pbmc3k,
 #' Group1 = c("Barcode1","Barcode23","Barcode47",..),
 #' Group2 = c("Barcode3,"Barcode7, "Barcode11",..)
 #' Out = T)
@@ -1071,8 +1071,8 @@ DEfeatures <- function(PiccoloList,Group1,Group2,Out = F){
 #' @return A numeric matrix containing the standardized values.
 #' @examples
 #' \dontrun{
-#' PiccList <- ComputePC(PiccoloList = PiccList)
-#' PiccList <- ComputePC(PiccoloList = PiccList,NoOfPC = 20,Out = T)
+#' pbmc3k <- ComputePC(PiccoloList = pbmc3k)
+#' pbmc3k <- ComputePC(PiccoloList = pbmc3k,NoOfPC = 20,Out = T)
 #' }
 ComputePC <- function(PiccoloList,NoOfPC =  50,Out = F){
   Std.Mat <- PiccoloList$NormCounts
@@ -1107,7 +1107,7 @@ ComputePC <- function(PiccoloList,NoOfPC =  50,Out = F){
 #' @return A data frame containing the coordinates of the cells in the first 2 UMAP dimensions.
 #' @examples
 #' \dontrun{
-#' PiccList <- UMAPcoords(PiccoloList = PiccList,
+#' pbmc3k <- UMAPcoords(PiccoloList = pbmc3k,
 #' Out = T)
 #' }
 UMAPcoords <- function(PiccoloList,Out = F){
@@ -1137,7 +1137,7 @@ UMAPcoords <- function(PiccoloList,Out = F){
 #' @return A ggplot2 object
 #' @examples
 #' \dontrun{
-#' p <- LabelUMAP(PiccoloList = PiccList,
+#' p <- LabelUMAP(PiccoloList = pbmc3k,
 #' Labels = c("b-cells","b-cells",..,"cd14 monocytes",..,"NK cells",..),
 #' Levels = c("b-cells","cd14 monocytes","dendritic","NK cells","naive cytotoxic"))
 #' }
