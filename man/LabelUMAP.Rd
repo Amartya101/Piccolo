@@ -4,10 +4,10 @@
 \alias{LabelUMAP}
 \title{Label cells on UMAP}
 \usage{
-LabelUMAP(X, Labels, Levels = NULL, Alpha = 0.7, Size = 0.9)
+LabelUMAP(PiccoloList, Labels, Levels = NULL, Alpha = 0.7, Size = 0.9)
 }
 \arguments{
-\item{X}{A character variable. Specifies the name of the .csv file containing the UMAP coordinates obtained from the \link[Piccolo]{UMAPCoords} function}
+\item{PiccoloList}{A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize}, the \link[Piccolo]{ComputePC}, and the \link[Piccolo]{UMAPcoords} functions}
 
 \item{Labels}{A character vector. Should contain the character labels for cells in the same order as the cells in the counts matrix}
 
@@ -25,7 +25,7 @@ This function can be used to label (color) cells on the UMAP plot
 }
 \examples{
 \dontrun{
-LabelUMAP(X = "10X_PBMC3k_logTransformedStandardizedCounts_Top50PrinComp_UMAPCoords.csv",
+p <- LabelUMAP(PiccoloList = PiccList,
 Labels = c("b-cells","b-cells",..,"cd14 monocytes",..,"NK cells",..),
 Levels = c("b-cells","cd14 monocytes","dendritic","NK cells","naive cytotoxic"))
 }

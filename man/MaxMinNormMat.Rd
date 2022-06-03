@@ -4,14 +4,10 @@
 \alias{MaxMinNormMat}
 \title{Max-Min Normalization Function}
 \usage{
-MaxMinNormMat(X, TopFeatures, Barcode, Out = F)
+MaxMinNormMat(PiccoloList, Out = F)
 }
 \arguments{
-\item{X}{A character variable. Specifies the name of the .csv file containing the standardized values obtained from the \link[Piccolo]{StandardizeMat} function}
-
-\item{TopFeatures}{A character variable. Specifies the name of the .csv file containing the list of genes that were shortlisted as highly variable by the \link[Piccolo]{StandardizeMat} function}
-
-\item{Barcode}{A character variable. Specifies the name of the barcodes file (.tsv format)}
+\item{PiccoloList}{A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} function}
 
 \item{Out}{A logical variable. Specifies whether to return an output file (.csv) with the normalized values (if set to T), or not (if set to F). Default is F}
 }
@@ -23,8 +19,7 @@ This function will normalize the standardized values to normalized values in the
 }
 \examples{
 \dontrun{
-MaxMinNormMat(X = "10X_PBMC3k_logTransformedStandardizedCounts.csv",
-TopFeatures = "TopFeatures10X_PBMC3k_matrix.csv",
-Barcode = "10X_PBMC3k_barcodes.tsv",Out = T)
+MaxMinNormMat(PiccoloList = PiccList,
+Out = T)
 }
 }

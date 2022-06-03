@@ -4,14 +4,10 @@
 \alias{DEfeatures}
 \title{Identify differentially expressed between 2 groups of cells}
 \usage{
-DEfeatures(X, TopFeatures, Barcode, Group1, Group2, Out = F)
+DEfeatures(PiccoloList, Group1, Group2, Out = F)
 }
 \arguments{
-\item{X}{A character variable. Specifies the name of the .csv file containing the standardized values obtained from the \link[Piccolo]{StandardizeMat} function}
-
-\item{TopFeatures}{A character variable. Specifies the name of the .csv file containing the list of genes that were shortlisted as highly variable by the \link[Piccolo]{StandardizeMat} function}
-
-\item{Barcode}{A character variable. Specifies the name of the barcodes file (.tsv format)}
+\item{PiccoloList}{A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} function}
 
 \item{Group1}{A character vector. Specifies the barcodes of cells in group 1}
 
@@ -27,9 +23,7 @@ This function performs differential expression analysis (using the Mann-Whitney 
 }
 \examples{
 \dontrun{
-DEfeatures(X = "10X_PBMC3k_logTransformedStandardizedCounts.csv",
-TopFeatures = "TopFeatures10X_PBMC3k_matrix.csv",
-Barcode = "10X_PBMC3k_barcodes.tsv",
+DE.Genes.df <- DEfeatures(PiccoloList = PiccList,
 Group1 = c("Barcode1","Barcode23","Barcode47",..),
 Group2 = c("Barcode3,"Barcode7, "Barcode11",..)
 Out = T)

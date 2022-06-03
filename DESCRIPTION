@@ -1,7 +1,7 @@
 Package: Piccolo
 Type: Package
 Title: A package for analyzing single-cell counts data
-Version: 0.1.0
+Version: 0.1.1
 Author: Amartya Singh
 Maintainer: The package maintainer <amartya.singh@rutgers.edu>
 Description: Contains a set of functions to prepare and analyze single-cell counts data sets.

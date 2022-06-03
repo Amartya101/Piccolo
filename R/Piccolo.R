@@ -318,31 +318,28 @@ CombineMTX <- function(Path,MinFeaturesPerCell = 200, MT.Perc = 10,RP.Perc = 70)
   message("Successfully generated the output files.")
 }
 
-#' @title  Standardization Function
-#' @description  This function performs feature selection and prepares standardized counts matrix for the shortlisted features
+#' @title  CreatePiccoloList Function
+#' @description  This function creates a list object containing the counts matrix, the features (genes) list, and the barcodes
 #' @export
 #' @param X A character variable. Specifies the name of the .mtx or .mtx.gz file that contains the counts.
 #' @param Gene A character variable. Specifies the name of the features (genes) file (.tsv format)
 #' @param Barcode A character variable. Specifies the name of the barcodes file (.tsv format)
-#' @param VarFeatures A numeric (integer) variable. The number of variable features to be shortlisted.
-#' @param Transform A character variable. Specifies the non-linear transformation that will be applied to the counts. Currently, we offer the log transform (default) and Yeo-Johnson transform. These can be specified as "log" and "yj", respectively. The default is "log".
-#' @param Batch An optional character vector. Specifies the batch labels for the cells. The order of the batch labels should match the order of the cells in the counts (or barcodes) file.
-#' @param ReferenceLevel A numeric variable (value should be greater than 0 but less than 1). Specifies the reference level against which features are identified as variable. Default is the median (ReferenceLevel = 0.5).
-#' @param MinPercNonZero A numeric variable. Specifies the minimum percentage of cells that must have non-zero counts for each gene in the data set. Default is 1 (\%).
-#' @param Out A logical variable. Specifies whether to return an output file (.csv) with the standardized values (if set to T), or not (if set to F). Default is F
-#' @return A numeric matrix containing the standardized values.
+#' @param MinFeaturesPerCell A numeric variable. The minimum number of features with non-zero counts that any given cell is expected to contain. Cells with fewer than the specified number will be filtered out (Default is 200).
+#' @param MT.Perc A numeric variable. The percentage of total count in any given cell attributed to counts of mitochondrial genes. Cells with MT.Perc greater than the specified number will be filtered out (Default is 10).
+#' @param RP.Perc A numeric variable. The percentage of total count in any given cell attributed to counts of ribosomal genes. Cells with RP.Perc greater than the specified number will be filtered out (Default is 70).
+#' @return A list containing the counts matrix, the genes list, and the barcodes.
 #' @examples
 #' \dontrun{
-#'  StandardizeMat(X = "10X_PBMC3k_matrix.mtx.gz",
+#'  PiccList <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz",
 #'  Gene = "10X_PBMC3k_features.tsv",
-#'  BinaryMatrix = "10X_PBMC3k_barcodes.tsv",Out = T)
-#'  StandardizeMat(X = "10X_PBMC3k_matrix.mtx.gz",
+#'  Barcode = "10X_PBMC3k_barcodes.tsv")
+#'  PiccList <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz",
 #'  Gene = "10X_PBMC3k_features.tsv",
-#'  BinaryMatrix = "10X_PBMC3k_barcodes.tsv",
-#'  ReferenceLevel = 0.3,MinPercNonZero = 0.5,Out = T)
+#'  Barcode = "10X_PBMC3k_barcodes.tsv"
+#'  MinFeaturesPerCell = 100, MT.Perc = 20,RP.Perc = 90)
 #' }
-StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = "log", Batch=NULL,ReferenceLevel = NULL,MinPercNonZero = 1,Out = F){
 
+CreatePiccoloList <- function(X,Gene,Barcode,MinFeaturesPerCell = 200,MT.Perc = 10,RP.Perc = 70){
   message("Importing files...")
 
   UMI.Mat <- Matrix::readMM(file = X)
@@ -353,6 +350,119 @@ StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = "log", 
 
   Barcodes <- read.delim(Barcode,header = F,stringsAsFactors = F)
   Barcodes <- Barcodes$V1
+
+  if (ncol(Gene.IDs) > 1){
+    List.For.GS.Col <- vector(mode = "list",length = ncol(Gene.IDs))
+    for (j in 1:ncol(Gene.IDs))
+    {
+      List.For.GS.Col[[j]] <- which(substr(toupper(Gene.IDs[,j]),1,3) == "RPL" | substr(toupper(Gene.IDs[,j]),1,3) == "RPS")
+    }
+
+    GS.Col <- which(unlist(lapply(List.For.GS.Col,length)) != 0)
+
+    if (length(GS.Col) == 1){
+      Duplicated.Features <- which(duplicated(Gene.IDs[,1]) == T)
+      if (length(Duplicated.Features) != 0){
+        UMI.Mat <- Matrix::t(UMI.Mat)
+        UMI.Mat <- UMI.Mat[,-Duplicated.Features]
+        UMI.Mat <- Matrix::t(UMI.Mat)
+        Gene.IDs <- Gene.IDs[-Duplicated.Features,]
+        rownames(UMI.Mat) <- Gene.IDs[,1]
+      } else {
+        rownames(UMI.Mat) <- Gene.IDs[,1]
+      }
+    } else {
+      warning("Features file does not contain gene symbols. MT genes and RP genes filtering will not be performed.")
+      Gene.IDs <- Gene.IDs[,1]
+      Duplicated.Features <- which(duplicated(Gene.IDs[,1]) == T)
+      if (length(Duplicated.Features) != 0){
+        UMI.Mat <- Matrix::t(UMI.Mat)
+        UMI.Mat <- UMI.Mat[,-Duplicated.Features]
+        UMI.Mat <- Matrix::t(UMI.Mat)
+        Gene.IDs <- Gene.IDs[-Duplicated.Features,]
+        rownames(UMI.Mat) <- Gene.IDs[,1]
+      } else {
+        rownames(UMI.Mat) <- Gene.IDs[,1]
+      }
+    }
+  } else {
+    Gene.IDs <- Gene.IDs$V1
+    Duplicated.Features <- which(duplicated(Gene.IDs[,1]) == T)
+    if (length(Duplicated.Features) != 0){
+      UMI.Mat <- Matrix::t(UMI.Mat)
+      UMI.Mat <- UMI.Mat[,-Duplicated.Features]
+      UMI.Mat <- Matrix::t(UMI.Mat)
+      Gene.IDs <- Gene.IDs[-Duplicated.Features,]
+      rownames(UMI.Mat) <- Gene.IDs[,1]
+    } else {
+      rownames(UMI.Mat) <- Gene.IDs[,1]
+    }
+  }
+
+  Col.Sums.Vec <- Matrix::colSums(UMI.Mat)
+
+  FeatureCounts.Per.Cell <- Matrix::diff(UMI.Mat@p)
+
+  message("Filtering...")
+
+  MT.Features <- grep("MT-",toupper(Gene.IDs[,GS.Col]),fixed = T)
+  if (length(MT.Features) != 0){
+    MT.mat <- UMI.Mat[MT.Features,]
+    MT.Col.Sums <- Matrix::colSums(MT.mat)
+    MT.In.Prop.Total.Sum <- MT.Col.Sums/Col.Sums.Vec
+  } else {
+    warning("MT genes not detected in features.")
+    MT.In.Prop.Total.Sum <- c()
+  }
+
+  RP.Features <- which(substr(toupper(Gene.IDs[,GS.Col]),1,3) == "RPL" | substr(toupper(Gene.IDs[,GS.Col]),1,3) == "RPS" |  substr(toupper(Gene.IDs[,GS.Col]),1,3) %in% c("FAU","UBA52"))
+  if (length(RP.Features) != 0){
+    RP.mat <- UMI.Mat[RP.Features,]
+    RP.Col.Sums <- Matrix::colSums(RP.mat)
+    RP.In.Prop.Total.Sum <- RP.Col.Sums/Col.Sums.Vec
+  } else {
+    warning("RP genes not detected in features.")
+    RP.In.Prop.Total.Sum <- c()
+  }
+
+  Cells.To.Remove <- unique(c(which(MT.In.Prop.Total.Sum > MT.Perc/100),which(RP.In.Prop.Total.Sum > RP.Perc/100),which(FeatureCounts.Per.Cell < MinFeaturesPerCell)))
+
+  Barcodes <- Barcodes[-Cells.To.Remove]
+
+  if (length(Cells.To.Remove) != 0){
+    UMI.Mat <- UMI.Mat[,-Cells.To.Remove]
+  }
+
+  PiccoloList <- list(Counts  = UMI.Mat,Genes = Gene.IDs,Barcodes = Barcodes)
+  return(PiccoloList)
+}
+
+#' @title  Normalization and feature selection
+#' @description  This function performs feature selection and prepares standardized counts matrix for the shortlisted features
+#' @export
+#' @param PiccoloList A list object. This should be the list created using the \link[Piccolo]{CreatePiccoloList} function
+#' @param VarFeatures A numeric (integer) variable. The number of variable features to be shortlisted. If left NULL, will shortlist based on the threshold of ReferenceLevel
+#' @param Transform A character variable. Specifies the non-linear transformation that will be applied to the counts. Currently, we offer the log transform (default) and Yeo-Johnson transform. These can be specified as "log" and "yj", respectively. The default is "log".
+#' @param Batch An optional character vector. Specifies the batch labels for the cells. The order of the batch labels should match the order of the cells in the counts (or barcodes) file.
+#' @param ReferenceLevel A numeric variable (value should be greater than 0 but less than 1). Specifies the reference level against which features are identified as variable. Default is the median (ReferenceLevel = 0.5).
+#' @param MinPercNonZero A numeric variable. Specifies the minimum percentage of cells that must have non-zero counts for each gene in the data set. Default is 1 (\%).
+#' @param Out A logical variable. Specifies whether to return an output file (.csv) with the standardized values (if set to T), or not (if set to F). Default is F
+#' @return A numeric matrix containing the normalized values.
+#' @examples
+#' \dontrun{
+#' PiccList <- Normalize(X = PiccList)
+#' PiccList <- Normalize(X = PiccList,
+#' ReferenceLevel = 0.3,MinPercNonZero = 0.5,Out = T)
+#' }
+Normalize <- function(PiccoloList,VarFeatures = NULL,Transform = "log", Batch=NULL,ReferenceLevel = NULL,MinPercNonZero = 1,Out = F){
+
+  message("Importing files...")
+
+  UMI.Mat <- PiccoloList$Counts
+
+  Gene.IDs <- PiccoloList$Genes
+
+  Barcodes <- PiccoloList$Barcodes
 
   TransformType <- Transform
 
@@ -424,7 +534,7 @@ StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = "log", 
       SF.Per.Cell <- YJ.Trans.TotalCounts/mean(YJ.Trans.TotalCounts)
     }
 
-    Top.Features <- FeatureSelect(X = UMI.Mat,Reference = ReferenceLevel,GeneID = Gene.IDs,Min.Perc.Non.Zero.Cells = MinPercNonZero)
+    Top.Features <- FeatureSelect(X = UMI.Mat,Gene = Gene.IDs,Reference = ReferenceLevel,Min.Perc.Non.Zero.Cells = MinPercNonZero)
 
     if (is.null(VarFeatures)){
       if (length(dim(Top.Features)) > 1){
@@ -452,7 +562,7 @@ StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = "log", 
       }
     }
 
-    write.csv(Top.Features,file = paste0("TopFeatures",unlist(strsplit(X,".",fixed = T))[1],".csv"),row.names = F)
+    write.csv(Top.Features,file = paste0("Top",length(Top.Features.Ser.Nos),"Features",".csv"),row.names = F)
     message("Successfully prepared .csv file containing list of highly variable features.")
 
     UMI.Mat <- Matrix::t(UMI.Mat)
@@ -465,7 +575,9 @@ StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = "log", 
       FileName <- paste0(Transform,"TransformedStandardizedCounts.csv")
       data.table::fwrite(data.frame(Std.Mat),file = FileName,row.names = F,col.names = F,sep = ",")
     }
-    return(Std.Mat)
+    PiccoloList$NormCounts <- Std.Mat
+    PiccoloList$VariableFeatures <- Top.Features
+    return(PiccoloList)
   } else { #For batches
     stopifnot(length(Batch) == ncol(UMI.Mat))
 
@@ -482,7 +594,7 @@ StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = "log", 
 
     Zero.Count.Features <- Gene.IDs[Zero.Count.Features,1]
 
-    Top.Features <- FeatureSelect(X = UMI.Mat,GeneID = Gene.IDs,Reference  = ReferenceLevel,Min.Perc.Non.Zero.Cells = MinPercNonZero)
+    Top.Features <- FeatureSelect(X = UMI.Mat,Gene = Gene.IDs,Reference  = ReferenceLevel,Min.Perc.Non.Zero.Cells = MinPercNonZero)
 
     if (is.null(VarFeatures)){
       if (length(dim(Top.Features)) > 1){
@@ -516,7 +628,7 @@ StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = "log", 
       }
     }
 
-    write.csv(Top.Features,file = paste0("TopFeatures",unlist(strsplit(X,".",fixed = T))[1],".csv"),row.names = F)
+    write.csv(Top.Features,file = paste0("Top",length(Top.Features.Ser.Nos),"Features",".csv"),row.names = F)
     message("Successfully prepared .csv file containing list of highly variable features.")
 
     Std.Mat <- matrix(0, nrow = length(Top.Features.Ser.Nos), ncol = ncol(UMI.Mat))
@@ -603,7 +715,9 @@ StandardizeMat <- function(X,Gene,Barcode,VarFeatures = NULL,Transform = "log", 
       data.table::fwrite(data.frame(Std.Mat),file = FileName,row.names = F,col.names = T,sep = ",")
 
     }
-    return(Std.Mat)
+    PiccoloList$NormCounts <- Std.Mat
+    PiccoloList$VariableFeatures <- Top.Features
+    return(PiccoloList)
   }
 }
 
@@ -634,7 +748,7 @@ colOverdispQPCoef <- function(X,alternative = "greater"){
 }
 
 #Function to shortlist highly variable features
-FeatureSelect <- function(X,GeneID,Reference,Min.Perc.Non.Zero.Cells){
+FeatureSelect <- function(X,Gene,Reference,Min.Perc.Non.Zero.Cells){
 
   if (is.null(Reference)){
     Reference <- 0.5
@@ -645,7 +759,7 @@ FeatureSelect <- function(X,GeneID,Reference,Min.Perc.Non.Zero.Cells){
 
   UMI.Mat <- Matrix::t(X)
 
-  Gene.IDs <- GeneID
+  Gene.IDs <- Gene
 
   Var.Arith.Per.Feature <- colVarsSPM(UMI.Mat)
   Mean.Arith.Per.Feature <- Matrix::colMeans(UMI.Mat)
@@ -871,35 +985,21 @@ Standardize <- function(X,Transform,SF){
 #' @title  Max-Min Normalization Function
 #' @description  This function will normalize the standardized values to normalized values in the range 0-1
 #' @export
-#' @param X A character variable. Specifies the name of the .csv file containing the standardized values obtained from the \link[Piccolo]{StandardizeMat} function
-#' @param TopFeatures A character variable. Specifies the name of the .csv file containing the list of genes that were shortlisted as highly variable by the \link[Piccolo]{StandardizeMat} function
-#' @param Barcode A character variable. Specifies the name of the barcodes file (.tsv format)
+#' @param PiccoloList A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} function
 #' @param Out A logical variable. Specifies whether to return an output file (.csv) with the normalized values (if set to T), or not (if set to F). Default is F
 #' @return A numeric matrix containing the standardized values.
 #' @examples
 #' \dontrun{
-#' MaxMinNormMat(X = "10X_PBMC3k_logTransformedStandardizedCounts.csv",
-#' TopFeatures = "TopFeatures10X_PBMC3k_matrix.csv",
-#' Barcode = "10X_PBMC3k_barcodes.tsv",Out = T)
+#' MaxMinNormMat(PiccoloList = PiccList,
+#' Out = T)
 #' }
-MaxMinNormMat <- function(X,TopFeatures,Barcode,Out = F){
-  Std.Mat <- as.matrix(data.table::fread(X))
-
-  Features <- read.csv(TopFeatures)
-  Features <- Features$x
-
-  Barcodes <- read.delim(Barcode,header = F,stringsAsFactors = F)
-  Barcodes <- Barcodes$V1
-
-  Barcodes <- gsub(".","-",Barcodes,fixed = T)
-
-  rownames(Std.Mat) <- Features
-  colnames(Std.Mat) <- Barcodes
+MaxMinNormMat <- function(PiccoloList,Out = F){
+  Std.Mat <- PiccoloList$NormCounts
 
   Norm.Mat <- t(apply(Std.Mat,1,function(x) (x- min(x))/(max(x) - min(x))))
   if (Out == T){
     Norm.df <- data.frame(Norm.Mat)
-    FileName <- paste0(substr(X,1,nchar(X)-4),"_MaxMinNormMat.csv")
+    FileName <- paste0("MaxMinNormMat.csv")
     data.table::fwrite(Norm.df,file = FileName,row.names = F,col.names = F,sep = ",")
   }
   return(Norm.Mat)
@@ -908,39 +1008,27 @@ MaxMinNormMat <- function(X,TopFeatures,Barcode,Out = F){
 #' @title  Identify differentially expressed between 2 groups of cells
 #' @description  This function performs differential expression analysis (using the Mann-Whitney test) between 2 groups of cells provided by the user
 #' @export
-#' @param X A character variable. Specifies the name of the .csv file containing the standardized values obtained from the \link[Piccolo]{StandardizeMat} function
-#' @param TopFeatures A character variable. Specifies the name of the .csv file containing the list of genes that were shortlisted as highly variable by the \link[Piccolo]{StandardizeMat} function
-#' @param Barcode A character variable. Specifies the name of the barcodes file (.tsv format)
+#' @param PiccoloList A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} function
 #' @param Group1 A character vector. Specifies the barcodes of cells in group 1
 #' @param Group2 A character vector. Specifies the barcodes of cells in group 2
 #' @param Out A logical variable. Specifies whether to return an output file (.csv) with the differential expression result (if set to T), or not (if set to F). Default is F
 #' @return A data frame containing the gene IDs, the log2 fold change (FC) of normalized values between group 1 and group 2 (positive FC indicates higher expression in group 1), the p-values from the Mann-Whitney test, and the adjusted p-values (p-adj) after Benjamini-Hochberg correction
 #' @examples
 #' \dontrun{
-#' DEfeatures(X = "10X_PBMC3k_logTransformedStandardizedCounts.csv",
-#' TopFeatures = "TopFeatures10X_PBMC3k_matrix.csv",
-#' Barcode = "10X_PBMC3k_barcodes.tsv",
+#' DE.Genes.df <- DEfeatures(PiccoloList = PiccList,
 #' Group1 = c("Barcode1","Barcode23","Barcode47",..),
 #' Group2 = c("Barcode3,"Barcode7, "Barcode11",..)
 #' Out = T)
 #' }
+DEfeatures <- function(PiccoloList,Group1,Group2,Out = F){
+  Std.Mat <- PiccoloList$NormCounts
 
-DEfeatures <- function(X,TopFeatures,Barcode,Group1,Group2,Out = F){
-  Std.Mat <- as.matrix(data.table::fread(X))
+  Features <- PiccoloList$VariableFeatures
 
-  Features <- read.csv(TopFeatures)
-  Features <- Features$x
-
-  Barcodes <- read.delim(Barcode,header = F,stringsAsFactors = F)
-  Barcodes <- Barcodes$V1
-
-  Barcodes <- gsub(".","-",Barcodes,fixed = T)
+  Barcodes <- PiccoloList$Barcodes
 
   Group1 <- which(Barcodes %in% Group1)
   Group2 <- which(Barcodes %in% Group2)
-
-  rownames(Std.Mat) <- Features
-  colnames(Std.Mat) <- Barcodes
 
   Norm.Mat <- t(apply(Std.Mat,1,function(x) (x- min(x))/(max(x) - min(x))))
 
@@ -956,46 +1044,46 @@ DEfeatures <- function(X,TopFeatures,Barcode,Group1,Group2,Out = F){
 
   p.val.vec <- p.val.vec[order(log2FC.vec,decreasing = T)]
   p.adj.vec <- p.adjust(p.val.vec,method = "BH")
-  Genes <- Features[order(log2FC.vec,decreasing = T)]
+  if (length(dim(Features)) > 1){
+    Genes <- Features[order(log2FC.vec,decreasing = T),]
+  } else {
+    Genes <- Features[,order(log2FC.vec,decreasing = T)]
+  }
+
   Base.Mean.vec <- Base.Mean.vec[order(log2FC.vec,decreasing = T)]
   log2FC.vec <- log2FC.vec[order(log2FC.vec,decreasing = T)]
 
   DE.Res.df <- data.frame(Genes,Base.Mean.vec,log2FC.vec,p.val.vec,p.adj.vec)
-  colnames(DE.Res.df) <- c("Gene","BaseMean","log2FC","p.val","p.adj")
 
   if (Out == T){
-    FileName <- paste0(substr(X,1,nchar(X)-4),"DEGenes",".csv")
+    FileName <- paste0("DEGenes",".csv")
     data.table::fwrite(DE.Res.df,file = FileName,row.names = F,col.names = F,sep = ",")
   }
-
   return(DE.Res.df)
 }
 
 #' @title  Compute Principal Components
-#' @description  This function will calculate the principal components for the matrix with the standardized values obtained from the \link[Piccolo]{StandardizeMat} function.
+#' @description  This function will calculate the principal components for the matrix with the standardized values obtained from the \link[Piccolo]{Normalize} function.
 #' @export
-#' @param X A character variable. Specifies the name of the .csv file containing the standardized values obtained from the \link[Piccolo]{StandardizeMat} function
-#' @param TopFeatures A character variable. Specifies the name of the .csv file containing the list of genes that were shortlisted as highly variable by the \link[Piccolo]{StandardizeMat} function
-#' @param Barcode A character variable. Specifies the name of the barcodes file (.tsv format)
+#' @param PiccoloList A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} function
 #' @param NoOfPC A numeric (integer) variable. No of principal components to be retained in the output. Default is 50.
 #' @param Out A logical variable. Specifies whether to return an output file (.csv) with the normalized values (if set to T), or not (if set to F). Default is T
 #' @return A numeric matrix containing the standardized values.
 #' @examples
 #' \dontrun{
-#' ComputePC(X = "10X_PBMC3k_logTransformedStandardizedCounts.csv",
-#' TopFeatures = "TopFeatures10X_PBMC3k_matrix.csv",
-#' Barcode = "10X_PBMC3k_barcodes.tsv",Out = T)
+#' PiccList <- ComputePC(PiccoloList = PiccList)
+#' PiccList <- ComputePC(PiccoloList = PiccList,NoOfPC = 20,Out = T)
 #' }
-ComputePC <- function(X,TopFeatures,Barcode,NoOfPC =  50,Out = T){
-  Std.Mat <- as.matrix(data.table::fread(X))
+ComputePC <- function(PiccoloList,NoOfPC =  50,Out = T){
+  Std.Mat <- PiccoloList$NormCounts
 
-  Features <- read.csv(TopFeatures)
-  Features <- Features$x
+  Features <- PiccoloList$VariableFeatures
 
-  Barcodes <- read.delim(Barcode,header = F,stringsAsFactors = F)
-  Barcodes <- Barcodes$V1
+  if (length(dim(Features)) > 1){
+    Features <- Features[,1]
+  }
 
-  Barcodes <- gsub(".","-",Barcodes,fixed = T)
+  Barcodes <- PiccoloList$Barcodes
 
   rownames(Std.Mat) <- Features
   colnames(Std.Mat) <- Barcodes
@@ -1004,47 +1092,44 @@ ComputePC <- function(X,TopFeatures,Barcode,NoOfPC =  50,Out = T){
 
   if (Out == T){
     PC.df <- data.frame(res.pca$x[,1:NoOfPC])
-    FileName <- paste0(substr(X,1,nchar(X)-4),"_Top",NoOfPC,"PrinComp",".csv")
+    FileName <- paste0("Top",NoOfPC,"PrinComp",".csv")
     data.table::fwrite(PC.df,file = FileName,row.names = T,col.names = F,sep = ",")
   }
-  return(res.pca$x[,1:NoOfPC])
+  PiccoloList$PCmat <- res.pca$x[,1:NoOfPC]
+  return(PiccoloList)
 }
 
 #' @title  UMAP coordinates
 #' @description  This function will run UMAP for the matrix with the principal components
 #' @export
-#' @param X A character variable. Specifies the name of the .csv file containing the principal components obtained using the \link[Piccolo]{ComputePC} function
+#' @param PiccoloList A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} and the \link[Piccolo]{ComputePC} functions
 #' @param Out A logical variable. Specifies whether to return an output file (.csv) with the normalized values (if set to T), or not (if set to F). Default is T
 #' @return A data frame containing the coordinates of the cells in the first 2 UMAP dimensions.
 #' @examples
 #' \dontrun{
-#' UMAPCoords(X = "10X_PBMC3k_logTransformedStandardizedCounts_Top50PrinComp.csv",
+#' PiccList <- UMAPcoords(PiccoloList = PiccList,
 #' Out = T)
 #' }
-UMAPCoords <- function(X,Out = T){
+UMAPcoords <- function(PiccoloList,Out = T){
 
-  PC.df <- data.table::fread(X)
-
-  PC.Mat <- as.matrix(PC.df[,-1])
-  rownames(PC.Mat) <- PC.df$V1
-
-  rm(PC.df)
+  PC.Mat <- as.matrix(PiccoloList$PCmat)
 
   x <- umap::umap(PC.Mat)
 
   UMAP.df <- data.frame(CellID = rownames(x$layout),UMAP1  = x$layout[,1], UMAP2 = x$layout[,2])
 
   if (Out == T){
-    FileName <- paste0(substr(X,1,nchar(X)-4),"_UMAPCoords.csv")
+    FileName <- c("UMAPcoords.csv")
     data.table::fwrite(UMAP.df,file = FileName,row.names = F,sep = ",")
   }
-  return(UMAP.df)
+  PiccoloList$UMAPcoord <- UMAP.df
+  return(PiccoloList)
 }
 
 #' @title  Label cells on UMAP
 #' @description  This function can be used to label (color) cells on the UMAP plot
 #' @export
-#' @param X A character variable. Specifies the name of the .csv file containing the UMAP coordinates obtained from the \link[Piccolo]{UMAPCoords} function
+#' @param PiccoloList A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize}, the \link[Piccolo]{ComputePC}, and the \link[Piccolo]{UMAPcoords} functions
 #' @param Labels A character vector. Should contain the character labels for cells in the same order as the cells in the counts matrix
 #' @param Levels An optional character vector. Should specify the unique labels in the order in which the labels of the cells should be presented
 #' @param Alpha A numeric variable (strictly greater than 0). Specified the transparency of the dots on the UMAP plot. Default Alpha = 0.7
@@ -1052,14 +1137,14 @@ UMAPCoords <- function(X,Out = T){
 #' @return A ggplot2 object
 #' @examples
 #' \dontrun{
-#' LabelUMAP(X = "10X_PBMC3k_logTransformedStandardizedCounts_Top50PrinComp_UMAPCoords.csv",
+#' p <- LabelUMAP(PiccoloList = PiccList,
 #' Labels = c("b-cells","b-cells",..,"cd14 monocytes",..,"NK cells",..),
 #' Levels = c("b-cells","cd14 monocytes","dendritic","NK cells","naive cytotoxic"))
 #' }
 
-LabelUMAP <- function(X,Labels,Levels = NULL,Alpha = 0.7,Size = 0.9){
+LabelUMAP <- function(PiccoloList,Labels,Levels = NULL,Alpha = 0.7,Size = 0.9){
 
-  UMAP.Coord.df <- data.table::fread(X)
+  UMAP.Coord.df <- PiccoloList$UMAPcoord
 
   if (length(Labels) != length(UMAP.Coord.df$CellID)){
     stop("The length of the Labels vector provided does not match the number of cells in the UMAP.")

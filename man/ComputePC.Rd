@@ -4,14 +4,10 @@
 \alias{ComputePC}
 \title{Compute Principal Components}
 \usage{
-ComputePC(X, TopFeatures, Barcode, NoOfPC = 50, Out = T)
+ComputePC(PiccoloList, NoOfPC = 50, Out = T)
 }
 \arguments{
-\item{X}{A character variable. Specifies the name of the .csv file containing the standardized values obtained from the \link[Piccolo]{StandardizeMat} function}
-
-\item{TopFeatures}{A character variable. Specifies the name of the .csv file containing the list of genes that were shortlisted as highly variable by the \link[Piccolo]{StandardizeMat} function}
-
-\item{Barcode}{A character variable. Specifies the name of the barcodes file (.tsv format)}
+\item{PiccoloList}{A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} function}
 
 \item{NoOfPC}{A numeric (integer) variable. No of principal components to be retained in the output. Default is 50.}
 
@@ -21,12 +17,11 @@ ComputePC(X, TopFeatures, Barcode, NoOfPC = 50, Out = T)
 A numeric matrix containing the standardized values.
 }
 \description{
-This function will calculate the principal components for the matrix with the standardized values obtained from the \link[Piccolo]{StandardizeMat} function.
+This function will calculate the principal components for the matrix with the standardized values obtained from the \link[Piccolo]{Normalize} function.
 }
 \examples{
 \dontrun{
-ComputePC(X = "10X_PBMC3k_logTransformedStandardizedCounts.csv",
-TopFeatures = "TopFeatures10X_PBMC3k_matrix.csv",
-Barcode = "10X_PBMC3k_barcodes.tsv",Out = T)
+PiccList <- ComputePC(PiccoloList = PiccList)
+PiccList <- ComputePC(PiccoloList = PiccList,NoOfPC = 20,Out = T)
 }
 }
