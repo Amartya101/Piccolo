@@ -338,102 +338,127 @@ CombineMTX <- function(Path,MinFeaturesPerCell = 200, MT.Perc = 10,RP.Perc = 70)
 #'  Barcode = "10X_PBMC3k_barcodes.tsv"
 #'  MinFeaturesPerCell = 100, MT.Perc = 20,RP.Perc = 90) #changing the filtering criteria
 #' }
-
-CreatePiccoloList <- function(X,Gene,Barcode,MinFeaturesPerCell = 200,MT.Perc = 10,RP.Perc = 70){
+CreatePiccoloList <-  function (X, Gene, Barcode, MinFeaturesPerCell = 200, MT.Perc = 10, RP.Perc = 70)
+{
   message("Importing files...")
-
   UMI.Mat <- Matrix::readMM(file = X)
-
-  UMI.Mat <- methods::as(UMI.Mat,"dgCMatrix")
-
-  Gene.IDs <- read.delim(Gene,header = F,stringsAsFactors = F)
-
-  Barcodes <- read.delim(Barcode,header = F,stringsAsFactors = F)
+  UMI.Mat <- methods::as(UMI.Mat, "dgCMatrix")
+  Gene.IDs <- read.delim(Gene, header = F, stringsAsFactors = F)
+  Barcodes <- read.delim(Barcode, header = F, stringsAsFactors = F)
   Barcodes <- Barcodes$V1
-
-  if (ncol(Gene.IDs) > 1){
-    List.For.GS.Col <- vector(mode = "list",length = ncol(Gene.IDs))
-    for (j in 1:ncol(Gene.IDs))
-    {
-      List.For.GS.Col[[j]] <- which(substr(toupper(Gene.IDs[,j]),1,3) == "RPL" | substr(toupper(Gene.IDs[,j]),1,3) == "RPS")
+  if (ncol(Gene.IDs) > 1) {
+    List.For.GS.Col <- vector(mode = "list", length = ncol(Gene.IDs))
+    for (j in 1:ncol(Gene.IDs)) {
+      List.For.GS.Col[[j]] <- which(substr(toupper(Gene.IDs[,
+                                                            j]), 1, 3) == "RPL" | substr(toupper(Gene.IDs[,
+                                                                                                          j]), 1, 3) == "RPS")
     }
-
-    GS.Col <- which(unlist(lapply(List.For.GS.Col,length)) != 0)
-
-    if (length(GS.Col) == 1){
-      Duplicated.Features <- which(duplicated(Gene.IDs[,1]) == T)
-      if (length(Duplicated.Features) != 0){
+    GS.Col <- which(unlist(lapply(List.For.GS.Col, length)) !=
+                      0)
+    if (length(GS.Col) == 1) {
+      Duplicated.Features <- which(duplicated(Gene.IDs[,
+                                                       1]) == T)
+      if (length(Duplicated.Features) != 0) {
         UMI.Mat <- Matrix::t(UMI.Mat)
-        UMI.Mat <- UMI.Mat[,-Duplicated.Features]
+        UMI.Mat <- UMI.Mat[, -Duplicated.Features]
         UMI.Mat <- Matrix::t(UMI.Mat)
-        Gene.IDs <- Gene.IDs[-Duplicated.Features,]
-        rownames(UMI.Mat) <- Gene.IDs[,1]
-      } else {
-        rownames(UMI.Mat) <- Gene.IDs[,1]
+        Gene.IDs <- Gene.IDs[-Duplicated.Features, ]
+        rownames(UMI.Mat) <- Gene.IDs[, 1]
       }
-    } else {
+      else {
+        rownames(UMI.Mat) <- Gene.IDs[, 1]
+      }
+    }
+    else {
       warning("Features file does not contain gene symbols. MT genes and RP genes filtering will not be performed.")
-      Gene.IDs <- Gene.IDs[,1]
-      Duplicated.Features <- which(duplicated(Gene.IDs[,1]) == T)
-      if (length(Duplicated.Features) != 0){
+      Gene.IDs <- Gene.IDs[, 1]
+      Duplicated.Features <- which(duplicated(Gene.IDs[,
+                                                       1]) == T)
+      if (length(Duplicated.Features) != 0) {
         UMI.Mat <- Matrix::t(UMI.Mat)
-        UMI.Mat <- UMI.Mat[,-Duplicated.Features]
+        UMI.Mat <- UMI.Mat[, -Duplicated.Features]
         UMI.Mat <- Matrix::t(UMI.Mat)
-        Gene.IDs <- Gene.IDs[-Duplicated.Features,]
-        rownames(UMI.Mat) <- Gene.IDs[,1]
-      } else {
-        rownames(UMI.Mat) <- Gene.IDs[,1]
+        Gene.IDs <- Gene.IDs[-Duplicated.Features, ]
+        rownames(UMI.Mat) <- Gene.IDs[, 1]
       }
-    }
-  } else {
-    Gene.IDs <- Gene.IDs$V1
-    Duplicated.Features <- which(duplicated(Gene.IDs[,1]) == T)
-    if (length(Duplicated.Features) != 0){
-      UMI.Mat <- Matrix::t(UMI.Mat)
-      UMI.Mat <- UMI.Mat[,-Duplicated.Features]
-      UMI.Mat <- Matrix::t(UMI.Mat)
-      Gene.IDs <- Gene.IDs[-Duplicated.Features,]
-      rownames(UMI.Mat) <- Gene.IDs[,1]
-    } else {
-      rownames(UMI.Mat) <- Gene.IDs[,1]
+      else {
+        rownames(UMI.Mat) <- Gene.IDs[, 1]
+      }
     }
   }
+  else {
+    Gene.IDs <- Gene.IDs$V1
+    List.For.GS.Col <- vector(mode = "list", length = length(Gene.IDs))
+    for (j in 1:length(Gene.IDs)) {
+      List.For.GS.Col[[j]] <- which(substr(toupper(Gene.IDs[j]), 1, 3) == "RPL" | substr(toupper(Gene.IDs[j]), 1, 3) == "RPS")
+    }
 
+    if (length(List.For.GS.Col) != 0){
+      GS.Col <- 1
+    }
+
+
+    Duplicated.Features <- which(duplicated(Gene.IDs) ==
+                                   T)
+    if (length(Duplicated.Features) != 0) {
+      UMI.Mat <- Matrix::t(UMI.Mat)
+      UMI.Mat <- UMI.Mat[, -Duplicated.Features]
+      UMI.Mat <- Matrix::t(UMI.Mat)
+      Gene.IDs <- Gene.IDs[-Duplicated.Features, ]
+      rownames(UMI.Mat) <- Gene.IDs
+    }
+    else {
+      rownames(UMI.Mat) <- Gene.IDs
+    }
+  }
   Col.Sums.Vec <- Matrix::colSums(UMI.Mat)
-
   FeatureCounts.Per.Cell <- Matrix::diff(UMI.Mat@p)
-
   message("Filtering...")
+  if (is.null(ncol(Gene.IDs)) != T) {
+    MT.Features <- grep("MT-", toupper(Gene.IDs[, GS.Col]), fixed = T)
+  } else {
+    MT.Features <- grep("MT-", toupper(Gene.IDs), fixed = T)
+  }
 
-  MT.Features <- grep("MT-",toupper(Gene.IDs[,GS.Col]),fixed = T)
-  if (length(MT.Features) != 0){
-    MT.mat <- UMI.Mat[MT.Features,]
+  if (length(MT.Features) != 0) {
+    MT.mat <- UMI.Mat[MT.Features, ]
     MT.Col.Sums <- Matrix::colSums(MT.mat)
     MT.In.Prop.Total.Sum <- MT.Col.Sums/Col.Sums.Vec
-  } else {
+  }
+  else {
     warning("MT genes not detected in features.")
     MT.In.Prop.Total.Sum <- c()
   }
 
-  RP.Features <- which(substr(toupper(Gene.IDs[,GS.Col]),1,3) == "RPL" | substr(toupper(Gene.IDs[,GS.Col]),1,3) == "RPS" |  substr(toupper(Gene.IDs[,GS.Col]),1,3) %in% c("FAU","UBA52"))
-  if (length(RP.Features) != 0){
-    RP.mat <- UMI.Mat[RP.Features,]
+  if (is.null(ncol(Gene.IDs)) != T) {
+    RP.Features <- which(substr(toupper(Gene.IDs[, GS.Col]),
+                                1, 3) == "RPL" | substr(toupper(Gene.IDs[, GS.Col]),
+                                                        1, 3) == "RPS" | substr(toupper(Gene.IDs[, GS.Col]),
+                                                                                1, 3) %in% c("FAU", "UBA52"))
+  } else {
+    RP.Features <- which(substr(toupper(Gene.IDs),
+                                1, 3) == "RPL" | substr(toupper(Gene.IDs),
+                                                        1, 3) == "RPS" | substr(toupper(Gene.IDs),
+                                                                                1, 3) %in% c("FAU", "UBA52"))
+  }
+
+  if (length(RP.Features) != 0) {
+    RP.mat <- UMI.Mat[RP.Features, ]
     RP.Col.Sums <- Matrix::colSums(RP.mat)
     RP.In.Prop.Total.Sum <- RP.Col.Sums/Col.Sums.Vec
-  } else {
+  }
+  else {
     warning("RP genes not detected in features.")
     RP.In.Prop.Total.Sum <- c()
   }
-
-  Cells.To.Remove <- unique(c(which(MT.In.Prop.Total.Sum > MT.Perc/100),which(RP.In.Prop.Total.Sum > RP.Perc/100),which(FeatureCounts.Per.Cell < MinFeaturesPerCell)))
-
+  Cells.To.Remove <- unique(c(which(MT.In.Prop.Total.Sum >
+                                      MT.Perc/100), which(RP.In.Prop.Total.Sum > RP.Perc/100),
+                              which(FeatureCounts.Per.Cell < MinFeaturesPerCell)))
   Barcodes <- Barcodes[-Cells.To.Remove]
-
-  if (length(Cells.To.Remove) != 0){
-    UMI.Mat <- UMI.Mat[,-Cells.To.Remove]
+  if (length(Cells.To.Remove) != 0) {
+    UMI.Mat <- UMI.Mat[, -Cells.To.Remove]
   }
-
-  PiccoloList <- list(Counts  = UMI.Mat,Genes = Gene.IDs,Barcodes = Barcodes)
+  PiccoloList <- list(Counts = UMI.Mat, Genes = Gene.IDs, Barcodes = Barcodes)
   return(PiccoloList)
 }
 
