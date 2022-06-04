@@ -473,7 +473,7 @@ CreatePiccoloList <-  function (X, Gene, Barcode, MinFeaturesPerCell = 200, MT.P
 #' @param ReferenceLevel A numeric variable (value should be greater than 0 but less than 1). Specifies the reference level against which features are identified as variable. Default is the median (ReferenceLevel = 0.5).
 #' @param MinPercNonZero A numeric variable. Specifies the minimum percentage of cells that must have non-zero counts for each gene in the data set. Default is 1 (\%).
 #' @param Out A logical variable. Specifies whether to return an output file (.csv) with the standardized values (if set to T), or not (if set to F). Default is F
-#' @return A numeric matrix containing the normalized values.
+#' @return A list object containing the normalized counts and the variable features.
 #' @examples
 #' \dontrun{
 #' pbmc3k <- Normalize(PiccoloList = pbmc3k)
@@ -1012,8 +1012,8 @@ Standardize <- function(X,Transform,SF){
 #' @description  This function will normalize the standardized values to normalized values in the range 0-1
 #' @export
 #' @param PiccoloList A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} function
-#' @param Out A logical variable. Specifies whether to return an output file (.csv) with the normalized values (if set to T), or not (if set to F). Default is F
-#' @return A numeric matrix containing the standardized values.
+#' @param Out A logical variable. Specifies whether to return an output file (.csv) with the normalized values (if set to T). Default is F.
+#' @return A numeric matrix containing the normalized values.
 #' @examples
 #' \dontrun{
 #' NormMat <- MaxMinNormMat(PiccoloList = pbmc3k,
@@ -1192,5 +1192,302 @@ LabelUMAP <- function(PiccoloList,Labels,Levels = NULL,Alpha = 0.7,Size = 0.9){
   return(p)
 }
 
+#' @title  GenePairsSingleCell function
+#' @description  This function identifies the gene-pairs with significant overlaps between their percentile sets
+#' @export
+#' @param PiccoloList A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} function
+#' @param PercSetSize A numeric variable. Specifies the size of the top percentile set (in percent). Default value is 5.
+#' @param JcdInd A numeric variable. Specifies the minimum extent of the overlap between percentile sets of any given gene-pair.
+#' @param Stop A numeric variable. Specifies the stop point for the sliding window. For use as TuBA, leave this NULL (default).
+#' @param Out A logical variable. If set to T (default is F), will prepare .csv files containing the information about the gene-pairs, cells in percentile sets etc.
+#' @return A list object containing the gene-pairs data frame, the genes percentile sets data frame, and a data frame with cell IDs.
+#' @examples
+#' \dontrun{
+#' pbmc3k <- GenePairsSingleCell(PiccoloList = pbmc3k,PercSetSize = 5,JcdInd = 0.3)
+#' }
+
+#Function that generates p-values
+GenePairsSingleCell <- function(PiccoloList,PercSetSize = NULL,JcdInd,Stop = NULL,Out = F)
+{
+  Norm.Mat <- PiccoloList$NormCounts
+
+  Sample.IDs <- PiccoloList$Barcodes
+
+  Gene.Names <- PiccoloList$VariableFeatures
+  if (is.null(ncol(Gene.Names)) != T){
+    Gene.Names <- Gene.Names[,1]
+  }
+
+  if (is.null(PercSetSize)){
+    PercSetSize <- 5
+  }
+
+  if(is.null(Stop)){
+    Stop <- PercSetSize
+  } else if (Stop > 30){
+    message("Stop point can not be larger than 30. Setting it to 30 (maximum permitted).")
+    Stop <- 30
+  }
+
+  CutOffPerc <- PercSetSize/100
+
+  WindowShift <- PercSetSize/2
+
+  Stop.Point <- 100 - Stop
+
+  Stop.Point <- round(Stop.Point/100 * ncol(Norm.Mat))
+
+  Window.Indices <- c(ncol(Norm.Mat))
+  k <- 2
+  while (Window.Indices[k-1] >= Stop.Point){
+    Window.Indices <- c(Window.Indices,Window.Indices[k-1] - ceiling(CutOffPerc*ncol(Norm.Mat)/2))
+    k <- k + 1
+  }
+
+  List.With.Window.Ranges <- vector(mode = "list")
+  k <- 1
+  Start.Point <- 1
+  while(Start.Point+2 <= length(Window.Indices)){
+    List.With.Window.Ranges[[k]] <- c(Start.Point,Start.Point+2)
+    Start.Point <- Start.Point + 1
+    k <- k + 1
+  }
+
+  message("Finding gene-pairs...")
+
+  NonInformativeSamples <- vector(mode = "list",length(List.With.Window.Ranges))
+  Scores.Mat <- matrix("0",nrow = nrow(Norm.Mat),ncol = nrow(Norm.Mat))
+  SerNos.Reverse <- length(List.With.Window.Ranges):1
+  for (i in 1:length(List.With.Window.Ranges))
+  {
+    #Binary matrix with 1 for samples that are in the quantile set for any given gene
+    List.Samples.In.Window <- vector(mode = "list",length = nrow(Norm.Mat))
+    Row.Index.List <- vector(mode = "list",length = nrow(Norm.Mat))
+    Values.List <- vector(mode = "list",length = nrow(Norm.Mat))
+    for (j in 1:nrow(Norm.Mat))
+    {
+      Samples.In.Order <-  order(Norm.Mat[j,])
+
+      Samples.In.Window <- Samples.In.Order[Window.Indices[List.With.Window.Ranges[[i]][1]]:(Window.Indices[List.With.Window.Ranges[[i]][2]]+1)]
+
+      if (length(Samples.In.Window) != 0){
+        List.Samples.In.Window[[j]] <- Samples.In.Window
+        Row.Index.List[[j]] <- rep(j,length(Samples.In.Window))
+        Values.List[[j]] <- rep(1,length(Samples.In.Window))
+      }
+    }
+
+    Binary.Mat.For.Genes.Window <- Matrix::sparseMatrix(i = unlist(Row.Index.List),j = unlist(List.Samples.In.Window),x = unlist(Values.List))
+
+    #Find the frequencies for the samples
+    Sample.Frequencies <- Matrix::colSums(Binary.Mat.For.Genes.Window)
+
+    #Identify samples that only show up in one percentile set
+    ExclusionSamples <- which(Sample.Frequencies == 1)
+    if (length(ExclusionSamples) != 0){
+      Binary.Mat.For.Genes.Window <- Binary.Mat.For.Genes.Window[,-ExclusionSamples]
+      NonInformativeSamples[[i]] <- c(NonInformativeSamples[[i]],ExclusionSamples)
+    }
+
+    #Find the threshold for maximum frequency based on percentile set size
+    MaxThreshold <- max(Sample.Frequencies)
+    n <- choose(n = nrow(Binary.Mat.For.Genes.Window),k = 2)
+    a <- choose(n = MaxThreshold,k = 2)
+    p <- a/n
+    while (p > CutOffPerc) {
+      MaxThreshold <- MaxThreshold -1
+      a <- choose(n = MaxThreshold,k = 2)
+      p <- a/n
+    }
+
+    ExclusionSamples <- which(Sample.Frequencies > MaxThreshold)
+    if (length(ExclusionSamples) != 0){
+      Binary.Mat.For.Genes.Window <- Binary.Mat.For.Genes.Window[,-ExclusionSamples]
+      NonInformativeSamples[[i]] <- c(NonInformativeSamples[[i]],ExclusionSamples)
+    }
+
+    SampleOverlaps.Matrix <- Matrix::tcrossprod(Binary.Mat.For.Genes.Window,Binary.Mat.For.Genes.Window)
+
+    SampleOverlaps.Matrix <- as.matrix(SampleOverlaps.Matrix)
+
+    SampleUnion <- 2*ceiling(CutOffPerc*ncol(Norm.Mat))
+    SampleUnion.Matrix <- SampleUnion - SampleOverlaps.Matrix
+
+    rm(Binary.Mat.For.Genes.Window)
+
+    Jaccard.Ind.Mat <- SampleOverlaps.Matrix/SampleUnion.Matrix
+    rm(SampleUnion.Matrix)
+    rm(SampleOverlaps.Matrix)
+
+    #Find Jaccard distance between gene-pairs
+    Relevant.Gene.Pairs <- which(Jaccard.Ind.Mat >= JcdInd,arr.ind = T)
+    rm(Jaccard.Ind.Mat)
+
+    if (length(Relevant.Gene.Pairs) != 0){
+      Relevant.Gene.Pairs <- Relevant.Gene.Pairs[which(Relevant.Gene.Pairs[,1] < Relevant.Gene.Pairs[,2]),]
+      Scores.Mat[Relevant.Gene.Pairs] <- paste0(as.character(length(List.With.Window.Ranges) - SerNos.Reverse[i]),"/",Scores.Mat[Relevant.Gene.Pairs])
+    }
+  }
+
+  Scores.Summary <- table(Scores.Mat[Scores.Mat != "0"])
+
+  Names.Scores <- names(Scores.Summary)
+
+  Names.Scores <- substr(Names.Scores,1,nchar(Names.Scores)-1)
+
+  List.Scores <- vector(mode = "list",length = length(Names.Scores))
+  for (i in 1:length(Names.Scores))
+  {
+    List.Scores[[i]] <- unlist(strsplit(Names.Scores[i],"/",fixed = T))
+  }
+
+  if (length(List.Scores) == 1){
+    Relevant.Indices <- paste0(Names.Scores,"0")
+  } else {
+    Threshold.Vec <- rep(0,length(List.With.Window.Ranges))
+    for (i in 1:length(List.With.Window.Ranges))
+    {
+      CharI <- as.character(i-1)
+      TempVec <- c()
+      for (j in 1:length(List.Scores))
+      {
+        TempNo <- which(List.Scores[[j]] %in% CharI)
+        if (length(TempNo) != 0){
+          TempVec <- c(TempVec,j)
+        }
+      }
+      Threshold.Vec[i] <- sum(Scores.Summary[TempVec])
+    }
+
+    Relevant.Ind <- paste0("/",which(Threshold.Vec < 2*Threshold.Vec[1])-1,"/")
+
+    Matches.List <- vector(mode = "list",length(Relevant.Ind))
+    for (i in 1:length(Matches.List))
+    {
+      Matches.List[[i]] <- grep(Relevant.Ind[i],x = Names.Scores)
+    }
+
+    Matches.Vec <- unique(unlist(Matches.List))
+
+    Relevant.Indices <- paste0(Names.Scores[Matches.Vec],"0")
+
+  }
+
+  if (length(Relevant.Indices) < length(names(Scores.Summary))){
+    Relevant.Gene.Pairs <- arrayInd(which(Scores.Mat %in% Relevant.Indices),dim(Scores.Mat))
+    Relevant.Scores <- Scores.Mat[Relevant.Gene.Pairs]
+    Relevant.Scores <- substr(Relevant.Scores,1,nchar(Relevant.Scores)-2)
+  } else {
+    Relevant.Gene.Pairs <- arrayInd(which(Scores.Mat != "0"),dim(Scores.Mat))
+    Relevant.Scores <- Scores.Mat[Relevant.Gene.Pairs]
+    Relevant.Scores <- substr(Relevant.Scores,1,nchar(Relevant.Scores)-2)
+  }
+
+  if (length(Relevant.Gene.Pairs) == 0){
+    stop("No gene-pairs found for given choice of JcdInd.")
+  }
+
+  Gene.Pairs.Col1 <- Relevant.Gene.Pairs[,1]
+
+  Gene.Pairs.Col2 <- Relevant.Gene.Pairs[,2]
+
+  Relevant.Feature.Ser.Nos <- unique(c(Gene.Pairs.Col1,Gene.Pairs.Col2))
+
+  Relevant.Feature.Names <- Gene.Names[Relevant.Feature.Ser.Nos]
+
+  Relevant.Scores.Mat <- Scores.Mat[Relevant.Feature.Ser.Nos,Relevant.Feature.Ser.Nos]
+
+  rm(Scores.Mat)
+
+  Gene.Pairs.df <- data.frame(Gene.Pairs.Col1,Gene.Pairs.Col2,Relevant.Scores,rep(CutOffPerc,length(Relevant.Scores)),rep(JcdInd,length(Relevant.Scores)))
+  colnames(Gene.Pairs.df) <- c("Gene.1","Gene.2","Window.Indices","PercSet","JcdInd")
+  Gene.Pairs.df$Window.Indices <- as.character(Gene.Pairs.df$Window.Indices)
+
+  message("Preparing gene-pairs file...")
+
+  if (Out == T){
+    FileName <- paste0("GenePairsAndWindowIndices","_H",CutOffPerc,"_JcdInd",JcdInd,".csv")
+    write.table(Gene.Pairs.df,file = FileName, row.names = F,col.names = T,sep = ",")
+    message(paste0("Successfully generated .csv file containing edgelist with ",length(Relevant.Scores)," gene-pairs. Maximum window index is ",Gene.Pairs.df$Window.Indices[which(nchar(Gene.Pairs.df$Window.Indices) == max(nchar(Gene.Pairs.df$Window.Indices)))[1]]))
+  }
+
+  #Make the reduced scores matrix symmetrical
+  Relevant.Scores.Mat[lower.tri(Relevant.Scores.Mat)] = t(Relevant.Scores.Mat)[lower.tri(Relevant.Scores.Mat)]
+
+  Max.Score.Indices <- which(nchar(Relevant.Scores.Mat) == max(nchar(Relevant.Scores.Mat)),arr.ind = T)[1,]
+
+  Max.Relevant.Score.Exp <- as.numeric(unlist(strsplit((Relevant.Scores.Mat[Max.Score.Indices[1],Max.Score.Indices[2]]),"/",fixed = T))[1])
+
+  message("Preparing samples info...")
+
+  Matrix.With.Collated.Samples <- matrix(0,nrow = nrow(Norm.Mat),ncol = (Max.Relevant.Score.Exp+1))
+  for (i in 1:nrow(Relevant.Scores.Mat))
+  {
+    TempI <- Relevant.Feature.Ser.Nos[i]
+    Samples.In.Order <-  order(Norm.Mat[TempI,])
+    Temp.Max.Index <- which(nchar(Relevant.Scores.Mat[i,]) == max(nchar(Relevant.Scores.Mat[i,])))[1]
+    if (Temp.Max.Index != 0){
+      Max.Index <- as.numeric(unlist(strsplit(Relevant.Scores.Mat[i,Temp.Max.Index],"/",fixed = T))[1]) + 1
+      for (j in 1:Max.Index)
+      {
+        Samples.In.Window <- Samples.In.Order[Window.Indices[List.With.Window.Ranges[[j]][1]]:(Window.Indices[List.With.Window.Ranges[[j]][2]]+1)]
+
+        NonInformativeSamplesJ <- NonInformativeSamples[[j]]
+        if (length(NonInformativeSamplesJ) != 0){
+          Samples.In.Window <- Samples.In.Window[!Samples.In.Window %in% NonInformativeSamplesJ]
+        }
+
+        if (length(Samples.In.Window) != 0){
+          Matrix.With.Collated.Samples[TempI,j] <- paste(Samples.In.Window,collapse = "/")
+        }
+      }
+    } else {
+      Matrix.With.Collated.Samples[TempI,] <- 0
+    }
+  }
+
+  Col.Names <- paste0("W",as.character(1:(Max.Relevant.Score.Exp+1)))
+
+  colnames(Matrix.With.Collated.Samples) <- Col.Names
+
+  Sample.IDs.df <- data.frame(Sample.ID = Sample.IDs)
+
+  if (Out == T){
+    FileName <- paste0("CellIDs","_H",CutOffPerc,"_JcdInd",JcdInd,".csv")
+    write.csv(Sample.IDs.df,file = FileName,row.names = F)
+  }
+
+  #Prepare Genes-Samples window indices matrix
+  Genes.Samples.df <- data.frame(Gene.Names,Matrix.With.Collated.Samples)
+  colnames(Genes.Samples.df) <- c("Gene.ID",colnames(Matrix.With.Collated.Samples))
+
+  if (Out == T){
+    FileName <- paste0("GenesSamplesMatrix","_H",CutOffPerc,"_JcdInd",JcdInd,".csv")
+    write.table(Genes.Samples.df,file = FileName,row.names = F,col.names = T,sep = ",")
+    message("Successfully generated .csv file containing the genes-sample window indices matrix.")
+  }
+
+  PiccoloList$GenePairs <- Gene.Pairs.df
+  PiccoloList$CellIDsForBiclustering <- Sample.IDs.df
+  PiccoloList$GenesPercentileSets <- Genes.Samples.df
+
+  return(PiccoloList)
+
+}
+
+#' @title  GenePairsSingleCell function
+#' @description  This function identifies the gene-pairs with significant overlaps between their percentile sets
+#' @export
+#' @param PiccoloList A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} function
+#' @param Window A numeric (integer) variable. Specifies which window to perform biclustering on. For TuBA, it is set to 1 (default).
+#' @param MinGenes A numeric variable. Specifies the minimum number of genes that a bicluster should contain. Cannot be less than 3 (default).
+#' @param MinSamples A numeric variable. Specifies the minimum number of samples that a bicluster must contain. If left NULL (default), no minimum limit is imposed.
+#' @param SampleEnrichment A numeric variable. Specifies the enrichment level that samples must exhibit in order to belong to a bicluster.
+#' @param Out A logical variable. If set to T (default is F), will prepare a .csv file containing the bicluster results.
+#' @return A list object containing the bicluster results data frame.
+#' @examples
+#' \dontrun{
+#' pbmc3k <- Bicluster(PiccoloList = pbmc3k,SampleEnrichment = 0.05)
+#' }
 
 

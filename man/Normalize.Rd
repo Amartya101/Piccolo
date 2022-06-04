@@ -30,7 +30,7 @@ Normalize(
 \item{Out}{A logical variable. Specifies whether to return an output file (.csv) with the standardized values (if set to T), or not (if set to F). Default is F}
 }
 \value{
-A numeric matrix containing the normalized values.
+A list object containing the normalized counts and the variable features.
 }
 \description{
 This function performs feature selection and prepares standardized counts matrix for the shortlisted features
