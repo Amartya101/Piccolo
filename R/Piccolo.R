@@ -1035,15 +1035,17 @@ MaxMinNormMat <- function(PiccoloList,Out = F){
 #' @description  This function performs differential expression analysis (using the Mann-Whitney test) between 2 groups of cells provided by the user
 #' @export
 #' @param PiccoloList A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} function
-#' @param Group1 A character vector. Specifies the barcodes of cells in group 1
-#' @param Group2 A character vector. Specifies the barcodes of cells in group 2
-#' @param Out A logical variable. Specifies whether to return an output file (.csv) with the differential expression result (if set to T), or not (if set to F). Default is F
+#' @param Group1 A numeric (integers) vector. Specifies the serial numbers of cells in group 1 (serial numbers based on the order of barcodes)
+#' @param Group2 A numeric (integers) vector. Specifies the serial numbers of cells in group 2 (serial numbers based on the order of barcodes)
+#' @param Out A logical variable. Specifies whether to return an output file (.csv) with the differential expression result (if set to T). Default is F.
 #' @return A data frame containing the gene IDs, the log2 fold change (FC) of normalized values between group 1 and group 2 (positive FC indicates higher expression in group 1), the p-values from the Mann-Whitney test, and the adjusted p-values (p-adj) after Benjamini-Hochberg correction
 #' @examples
 #' \dontrun{
+#' Group1.vec <- 1:200
+#' Group2.vec <- 300:500
 #' DE.Genes.df <- DEfeatures(PiccoloList = pbmc3k,
-#' Group1 = c("Barcode1","Barcode23","Barcode47",..),
-#' Group2 = c("Barcode3,"Barcode7, "Barcode11",..)
+#' Group1 = Group1.vec,
+#' Group2 = Group2.vec,
 #' Out = T)
 #' }
 DEfeatures <- function(PiccoloList,Group1,Group2,Out = F){
@@ -1052,9 +1054,6 @@ DEfeatures <- function(PiccoloList,Group1,Group2,Out = F){
   Features <- PiccoloList$VariableFeatures
 
   Barcodes <- PiccoloList$Barcodes
-
-  Group1 <- which(Barcodes %in% Group1)
-  Group2 <- which(Barcodes %in% Group2)
 
   Norm.Mat <- t(apply(Std.Mat,1,function(x) (x- min(x))/(max(x) - min(x))))
 

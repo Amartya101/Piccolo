@@ -9,11 +9,11 @@ DEfeatures(PiccoloList, Group1, Group2, Out = F)
 \arguments{
 \item{PiccoloList}{A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} function}
 
-\item{Group1}{A character vector. Specifies the barcodes of cells in group 1}
+\item{Group1}{A numeric (integers) vector. Specifies the serial numbers of cells in group 1 (serial numbers based on the order of barcodes)}
 
-\item{Group2}{A character vector. Specifies the barcodes of cells in group 2}
+\item{Group2}{A numeric (integers) vector. Specifies the serial numbers of cells in group 2 (serial numbers based on the order of barcodes)}
 
-\item{Out}{A logical variable. Specifies whether to return an output file (.csv) with the differential expression result (if set to T), or not (if set to F). Default is F}
+\item{Out}{A logical variable. Specifies whether to return an output file (.csv) with the differential expression result (if set to T). Default is F.}
 }
 \value{
 A data frame containing the gene IDs, the log2 fold change (FC) of normalized values between group 1 and group 2 (positive FC indicates higher expression in group 1), the p-values from the Mann-Whitney test, and the adjusted p-values (p-adj) after Benjamini-Hochberg correction
@@ -23,9 +23,11 @@ This function performs differential expression analysis (using the Mann-Whitney 
 }
 \examples{
 \dontrun{
+Group1.vec <- 1:200
+Group2.vec <- 300:500
 DE.Genes.df <- DEfeatures(PiccoloList = pbmc3k,
-Group1 = c("Barcode1","Barcode23","Barcode47",..),
-Group2 = c("Barcode3,"Barcode7, "Barcode11",..)
+Group1 = Group1.vec,
+Group2 = Group2.vec,
 Out = T)
 }
 }
