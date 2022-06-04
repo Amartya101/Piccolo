@@ -454,9 +454,10 @@ CreatePiccoloList <-  function (X, Gene, Barcode, MinFeaturesPerCell = 200, MT.P
   Cells.To.Remove <- unique(c(which(MT.In.Prop.Total.Sum >
                                       MT.Perc/100), which(RP.In.Prop.Total.Sum > RP.Perc/100),
                               which(FeatureCounts.Per.Cell < MinFeaturesPerCell)))
-  Barcodes <- Barcodes[-Cells.To.Remove]
+
   if (length(Cells.To.Remove) != 0) {
     UMI.Mat <- UMI.Mat[, -Cells.To.Remove]
+    Barcodes <- Barcodes[-Cells.To.Remove]
   }
   PiccoloList <- list(Counts = UMI.Mat, Genes = Gene.IDs, Barcodes = Barcodes)
   return(PiccoloList)
@@ -562,14 +563,14 @@ Normalize <- function(PiccoloList,VarFeatures = NULL,Transform = "log", Batch=NU
     Top.Features <- FeatureSelect(X = UMI.Mat,Gene = Gene.IDs,Reference = ReferenceLevel,Min.Perc.Non.Zero.Cells = MinPercNonZero)
 
     if (is.null(VarFeatures)){
-      if (length(dim(Top.Features)) > 1){
+      if (is.null(ncol(Top.Features)) != T){
         VarFeatures <- length(Top.Features[,1])
       } else {
         VarFeatures <- length(Top.Features)
       }
     }
 
-    if(length(dim(Top.Features)) > 1){
+    if (is.null(ncol(Top.Features)) != T){
       if (dim(Top.Features)[1] >= VarFeatures){
         Top.Features <- Top.Features[1:VarFeatures,]
       }
@@ -622,20 +623,20 @@ Normalize <- function(PiccoloList,VarFeatures = NULL,Transform = "log", Batch=NU
     Top.Features <- FeatureSelect(X = UMI.Mat,Gene = Gene.IDs,Reference  = ReferenceLevel,Min.Perc.Non.Zero.Cells = MinPercNonZero)
 
     if (is.null(VarFeatures)){
-      if (length(dim(Top.Features)) > 1){
+      if (is.null(ncol(Top.Features)) != T){
         VarFeatures <- length(Top.Features[,1])
       } else {
         VarFeatures <- length(Top.Features)
       }
     }
 
-    if (length(dim(Top.Features)) > 1){
+    if (is.null(ncol(Top.Features)) != T){
       Top.Features <- Top.Features[!Top.Features[,1] %in% Zero.Count.Features,]
     } else {
       Top.Features <- Top.Features[!Top.Features %in% Zero.Count.Features]
     }
 
-    if(length(dim(Top.Features)) > 1){
+    if (is.null(ncol(Top.Features)) != T){
       if (dim(Top.Features)[1] > VarFeatures){
         Top.Features <- Top.Features[1:VarFeatures,]
       }
