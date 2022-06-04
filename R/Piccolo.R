@@ -584,7 +584,7 @@ Normalize <- function(PiccoloList,VarFeatures = NULL,Transform = "log", Batch=NU
       }
       Top.Features.Ser.Nos <- vector(mode = "numeric",length = length(Top.Features))
       for (i in 1:length(Top.Features.Ser.Nos)){
-        Top.Features.Ser.Nos[i] <- which(Gene.IDs[,1] == Top.Features[i])
+        Top.Features.Ser.Nos[i] <- which(Gene.IDs == Top.Features[i])
       }
     }
 
@@ -650,7 +650,7 @@ Normalize <- function(PiccoloList,VarFeatures = NULL,Transform = "log", Batch=NU
       }
       Top.Features.Ser.Nos <- vector(mode = "numeric",length = length(Top.Features))
       for (i in 1:length(Top.Features.Ser.Nos)){
-        Top.Features.Ser.Nos[i] <- which(Gene.IDs[,1] == Top.Features[i])
+        Top.Features.Ser.Nos[i] <- which(Gene.IDs == Top.Features[i])
       }
     }
 
