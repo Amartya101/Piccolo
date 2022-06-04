@@ -800,7 +800,7 @@ FeatureSelect <- function(X,Gene,Reference,Min.Perc.Non.Zero.Cells){
 
   if (length(Irrelevant.Features) != 0){
     UMI.Mat <- UMI.Mat[,-Irrelevant.Features]
-    if (length(dim(Gene.IDs)) > 1){
+    if (is.null(ncol(Gene.IDs)) != T){
       Gene.IDs <- Gene.IDs[-Irrelevant.Features,]
     } else {
       Gene.IDs <- Gene.IDs[-Irrelevant.Features]
@@ -818,7 +818,7 @@ FeatureSelect <- function(X,Gene,Reference,Min.Perc.Non.Zero.Cells){
 
   if (length(Irrelevant.Features) != 0){
     UMI.Mat <- UMI.Mat[,-Irrelevant.Features]
-    if (length(dim(Gene.IDs)) > 1){
+    if (is.null(ncol(Gene.IDs)) != T){
       Gene.IDs <- Gene.IDs[-Irrelevant.Features,]
     } else {
       Gene.IDs <- Gene.IDs[-Irrelevant.Features]
@@ -854,7 +854,7 @@ FeatureSelect <- function(X,Gene,Reference,Min.Perc.Non.Zero.Cells){
   Default.Features <- which(Diff.AlphaQP.AlphaQPFit > 0)
   Top.Features <- Default.Features[order(Diff.AlphaQP.AlphaQPFit[Default.Features],decreasing = T)]
 
-  if (length(dim(Gene.IDs)) > 1){
+  if (is.null(ncol(Gene.IDs)) != T){
     Gene.IDs <- Gene.IDs[Top.Features,]
   } else {
     Gene.IDs <- Gene.IDs[Top.Features]
