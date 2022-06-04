@@ -1490,4 +1490,464 @@ GenePairsSingleCell <- function(PiccoloList,PercSetSize = NULL,JcdInd,Stop = NUL
 #' pbmc3k <- Bicluster(PiccoloList = pbmc3k,SampleEnrichment = 0.05)
 #' }
 
+Bicluster <- function(PiccoloList,Window = 1,MinGenes = 3,MinSamples = NULL,SampleEnrichment = NULL,Out = F){
+  if(MinGenes < 3){
+    MinGenes <- 3
+    message("MinGenes cannot be less than 3. Minimum of 3 set as default.")
+  }
+
+  if(is.null(MinSamples)){
+    MinSamples <- 2
+  }
+
+  #Import data frame that contains the Node pairs found by the significant node pairs function
+  Node.Pairs.df <- PiccoloList$GenePairs
+  colnames(Node.Pairs.df) <- c("Node.1","Node.2","WndInd","CutOffPerc","JcdInd")
+
+  Node.Pairs.df$WndInd <- as.character(Node.Pairs.df$WndInd)
+
+  MaxInd <- which(nchar(Node.Pairs.df$WndInd) == max(nchar(Node.Pairs.df$WndInd)))[1]
+
+  MaxWindowSize <- as.numeric(unlist(strsplit(Node.Pairs.df$WndInd[MaxInd],"/",fixed = T))[1]) + 1
+
+  if (Window > MaxWindowSize){
+    stop(paste0("Window size choice exceeds maximum value of ",MaxWindowSize, " in the input file."))
+  }
+
+  List.WndInd <- vector(mode = "list",length = length(Node.Pairs.df$WndInd))
+  for (i in 1:length(List.WndInd))
+  {
+    List.WndInd[[i]] <- as.numeric(unlist(strsplit(Node.Pairs.df$WndInd[i],"/",fixed = T)))
+  }
+
+  JaccardInd <- round(min(Node.Pairs.df$JcdInd),digits = 2)
+
+  message("Importing files..")
+
+  #Import data frame that contains the window indices matrix
+  Nodes.Samples.Window.df <- PiccoloList$GenesPercentileSets
+  colnames(Nodes.Samples.Window.df) <- c("Node.ID",colnames(Nodes.Samples.Window.df[,-1]))
+
+  #Names of Nodes
+  Node.Names <- as.character(Nodes.Samples.Window.df$Node.ID)
+
+  #Binary matrix of Nodes and percentile set samples
+  Matrix.For.Samples.Windows <- as.matrix(Nodes.Samples.Window.df[,-1])
+
+  rm(Nodes.Samples.Window.df)
+
+  No.of.Samples.In.Windows <- as.numeric(unlist(lapply(sapply(as.character(Matrix.For.Samples.Windows[,Window]),function(x) strsplit(x,split = "/",fixed = T)),length)))
+
+  N.PercentileSet <- max(No.of.Samples.In.Windows)
+
+  Eligible.Column.For.Window <- which(colnames(Matrix.For.Samples.Windows) == paste0("W",Window))
+
+  List.Samples.Per.Node <- sapply(as.character(Matrix.For.Samples.Windows[,Window]),function(x) strsplit(x,split = "/",fixed = T))
+
+  #IDs of samples (or conditions)
+  Sample.IDs <- PiccoloList$CellIDsForBiclustering$Sample.ID
+
+  Eligible.NodePairs <- which(sapply(List.WndInd,function(x) x[order(x)][Window]) == Window-1)
+
+  #Column 1 of node pairs data frame with eligible window indices
+  Qualified.Node1 <- Node.Pairs.df$Node.1[Eligible.NodePairs]
+
+  #Column 2 of node pairs data frame with eligible window indices
+  Qualified.Node2 <- Node.Pairs.df$Node.2[Eligible.NodePairs]
+
+  if(length(Qualified.Node1) == 0){
+    stop("Please check input file. No node pairs found.")
+  } else {
+    message(paste0("There are a total of ",length(Qualified.Node1)," edges in the graph."))
+  }
+
+  #Summarize graph info in a table
+  Node.Summary.Info <- table(c(Qualified.Node1,Qualified.Node2))
+
+  #All Nodes in graph
+  All.Nodes.In.Graph <- as.numeric(names(Node.Summary.Info))
+
+  rm(Node.Pairs.df)
+
+  List.Samples.Per.Node <- List.Samples.Per.Node[All.Nodes.In.Graph]
+
+  message("Preparing graph...")
+
+  #Vector to convert node serial numbers to the corresponding serial number in the reduced adjacency matrix
+  Node.Annotation.Conversion.Vec <- vector(mode = "numeric", length = length(Node.Names))
+  Node.Ser.Nos <- 1:length(Node.Names)
+  Matching.Nodes.Indices <- match(All.Nodes.In.Graph,Node.Ser.Nos)
+  Node.Annotation.Conversion.Vec[Matching.Nodes.Indices] <- 1:length(All.Nodes.In.Graph)
+
+  #Prepare adjacency matrix for the graph
+  Adjacency.Mat.Nodes <- matrix(0,nrow = length(All.Nodes.In.Graph),ncol = length(All.Nodes.In.Graph))
+  Adjacency.Mat.Nodes[cbind(Node.Annotation.Conversion.Vec[Qualified.Node1],Node.Annotation.Conversion.Vec[Qualified.Node2])] <- 1
+
+  #Make the adjacency matrix symmetric
+  Adjacency.Mat.Nodes <- Adjacency.Mat.Nodes + t(Adjacency.Mat.Nodes)
+  rownames(Adjacency.Mat.Nodes) <- All.Nodes.In.Graph
+  colnames(Adjacency.Mat.Nodes) <- All.Nodes.In.Graph
+
+  message("Finding biclusters...")
+
+  if (length(Qualified.Node1) > 200000)
+    message("This may take several minutes due to the large size of the graph.")
+
+  Total.No.of.Edges.In.Unpruned.Graph <- length(Qualified.Node1)
+
+  Nodes.Per.Sample <- Nodes.Per.Sample <- vector(mode = "list",length = length(Sample.IDs))
+  for (i in 1:length(All.Nodes.In.Graph))
+  {
+    Node.Samples <- as.numeric(List.Samples.Per.Node[[i]])
+    for (j in 1:length(Node.Samples))
+    {
+      Nodes.Per.Sample[[Node.Samples[j]]] <- c(Nodes.Per.Sample[[Node.Samples[j]]],All.Nodes.In.Graph[i])
+    }
+  }
+
+  #Find sample background counts along edges in graph
+  Samples.Background.Frequencies <- vector(mode = "numeric", length = length(Sample.IDs))
+  for (i in 1:length(Samples.Background.Frequencies))
+  {
+    Temp.Nodes.Per.Sample <- Nodes.Per.Sample[[i]]
+    if (length(Temp.Nodes.Per.Sample) >= 2){
+      Sub.Adj.Mat <- Adjacency.Mat.Nodes[Node.Annotation.Conversion.Vec[Temp.Nodes.Per.Sample],Node.Annotation.Conversion.Vec[Temp.Nodes.Per.Sample]]
+      Samples.Background.Frequencies[i] <- sum(Sub.Adj.Mat)/2
+    } else{
+      Samples.Background.Frequencies[i] <- 0
+    }
+  }
+
+  #Find the number of triangular cliques associated with each node-pair in graph
+  No.of.Nodes.Associated <- vector(mode = "numeric",length = length(Qualified.Node1))
+  for (i in 1:length(Qualified.Node1))
+  {
+    TempI1 <- Qualified.Node1[i]
+    TempI2 <- Qualified.Node2[i]
+
+    Col.Sums.Vec <- colSums(Adjacency.Mat.Nodes[c(Node.Annotation.Conversion.Vec[TempI1],Node.Annotation.Conversion.Vec[TempI2]),])
+    No.of.Nodes.Associated[i] <- length(which(Col.Sums.Vec == 2))
+  }
+
+  #Non-triangular gene-pairs
+  Node.Pairs.For.Filtering <- which(No.of.Nodes.Associated == 0)
+
+  if (length(Node.Pairs.For.Filtering) != 0){
+    No.of.Nodes.Associated <- No.of.Nodes.Associated[-Node.Pairs.For.Filtering]
+
+    Qualified.Node1 <- Qualified.Node1[-Node.Pairs.For.Filtering]
+    Qualified.Node2 <- Qualified.Node2[-Node.Pairs.For.Filtering]
+  }
+
+  if(max(No.of.Nodes.Associated) == 0){
+    stop("No clique of size 3 found in input graph.")
+  }
+
+  Decreasing.No.of.Nodes <- order(No.of.Nodes.Associated,decreasing = T)
+
+  #Sort column 1 and column2 based on decreasing order of nodes associated
+  Qualified.Node1 <- Qualified.Node1[Decreasing.No.of.Nodes]
+  Qualified.Node2 <- Qualified.Node2[Decreasing.No.of.Nodes]
+
+  #Find dense subgraphs
+  i <- 1
+  Temp.Vec1 <- Qualified.Node1
+  Temp.Vec2 <- Qualified.Node2
+  Nodes.In.Subgraph <- vector(mode = "list")
+  Temp.Nodes.Vec <- c()
+  while (length(Temp.Vec1) != 0){
+    Sub.Adj.Mat <- Adjacency.Mat.Nodes[c(Node.Annotation.Conversion.Vec[Temp.Vec1[1]],Node.Annotation.Conversion.Vec[Temp.Vec2[1]]),]
+    Nodes.In.Subgraph[[i]] <- c(Temp.Vec1[1],Temp.Vec2[1],All.Nodes.In.Graph[colSums(Sub.Adj.Mat) == 2])
+    Nodes.In.Subgraph[[i]] <- Nodes.In.Subgraph[[i]][!Nodes.In.Subgraph[[i]] %in% Temp.Nodes.Vec]
+    Temp.Nodes.Vec <- c(Temp.Nodes.Vec,Nodes.In.Subgraph[[i]])
+
+    #Remove those edges that contain the nodes in the dense subgraph
+    Edges.To.Be.Removed <- which(Temp.Vec1 %in% Nodes.In.Subgraph[[i]] | Temp.Vec2 %in% Nodes.In.Subgraph[[i]])
+
+    Temp.Vec1 <- Temp.Vec1[-Edges.To.Be.Removed]
+    Temp.Vec2 <- Temp.Vec2[-Edges.To.Be.Removed]
+
+    i <- i + 1
+  }
+
+  if (length(Nodes.In.Subgraph) != 0){
+    message("Dense subgraphs identified.")
+  } else {
+    stop("No dense subgraph with at least 3 nodes identified.")
+  }
+
+  #Reintroduce dense subgraphs back in original graph and add nodes that share edges with at least 2 nodes in the dense subgraphs
+  Nodes.In.Bicluster <- vector(mode = "list",length = length(Nodes.In.Subgraph))
+  for (i in 1:length(Nodes.In.Subgraph))
+  {
+    Col.Ser.Nos.For.Bicluster <- Node.Annotation.Conversion.Vec[Nodes.In.Subgraph[[i]]]
+    Sub.Adj.Mat <- Adjacency.Mat.Nodes[,Col.Ser.Nos.For.Bicluster]
+    Nodes.In.Bicluster[[i]] <- unique(c(Nodes.In.Subgraph[[i]],as.numeric(rownames(Sub.Adj.Mat)[which(rowSums(Sub.Adj.Mat) >= 2)])))
+  }
+
+  #Find biclusters that have nodes that are subsets of other biclusters
+  Nested.Biclusters <- vector(mode = "numeric")
+  for (i in 1:length(Nodes.In.Bicluster))
+  {
+    TempI <- length(Nodes.In.Bicluster) - (i-1)
+    Temp.Bicluster.I <- Nodes.In.Bicluster[[TempI]]
+    j <- 1
+    Temp.Intersection <- 1
+    while(Temp.Intersection != 0 & TempI != j){
+      Temp.Bicluster.J <- Nodes.In.Bicluster[[j]]
+      Temp.Intersection <- length(Temp.Bicluster.I) - length(intersect(Temp.Bicluster.I,Temp.Bicluster.J))
+      if (Temp.Intersection == 0 & TempI != j & length(Temp.Bicluster.J) >= length(Temp.Bicluster.I)){
+        Nested.Biclusters <- c(Nested.Biclusters,TempI)
+      }
+      j <- j + 1
+    }
+  }
+
+  #Remove biclusters that are nested within larger biclusters
+  if (length(Nested.Biclusters) != 0){
+    Nodes.In.Bicluster <- Nodes.In.Bicluster[-Nested.Biclusters]
+  }
+
+  if (length(Nodes.In.Bicluster) > 1){
+    Bicluster.Size.Order <- order(unlist(lapply(Nodes.In.Bicluster,length)),decreasing = T)
+  } else if (length(Nodes.In.Bicluster) < 2 & length(Nodes.In.Bicluster[[1]]) != 0){
+    Bicluster.Size.Order <- 1
+  } else {
+    stop("No bicluster found with given choice of parameters.")
+  }
+
+  Nodes.In.Bicluster <- Nodes.In.Bicluster[Bicluster.Size.Order]
+
+  #Find samples preferentially associated with biclusters
+  n <- Total.No.of.Edges.In.Unpruned.Graph
+  Samples.In.Bicluster <- vector(mode = "list",length = length(Nodes.In.Bicluster))
+  for (i in 1:length(Nodes.In.Bicluster))
+  {
+    Temp.Nodes.In.Bicluster <- Nodes.In.Bicluster[[i]]
+
+    Sub.Adj.Mat <- Adjacency.Mat.Nodes[Node.Annotation.Conversion.Vec[Temp.Nodes.In.Bicluster],Node.Annotation.Conversion.Vec[Temp.Nodes.In.Bicluster]]
+    No.of.Edges.In.Bicluster <- sum(Sub.Adj.Mat)/2
+
+    Bicluster.Samples.Frequencies <- vector(mode = "numeric",length = length(Sample.IDs))
+    for (j in 1:length(Bicluster.Samples.Frequencies))
+    {
+      Temp.Nodes.Per.Sample <- Nodes.Per.Sample[[j]]
+      if (length(Temp.Nodes.Per.Sample) != 0){
+        Nodes.Per.Sample.In.Bicluster <- intersect(Temp.Nodes.Per.Sample,Temp.Nodes.In.Bicluster)
+      } else {
+        Nodes.Per.Sample.In.Bicluster <- NULL
+      }
+      if (length(Nodes.Per.Sample.In.Bicluster) > 0){
+        Sub.Adj.Mat <- Adjacency.Mat.Nodes[Node.Annotation.Conversion.Vec[Nodes.Per.Sample.In.Bicluster],Node.Annotation.Conversion.Vec[Nodes.Per.Sample.In.Bicluster]]
+        Bicluster.Samples.Frequencies[j] <- sum(Sub.Adj.Mat)/2
+      } else {
+        Bicluster.Samples.Frequencies[j] <- 0
+      }
+    }
+
+    Valid.Sample.Ser.Nos <- which(Bicluster.Samples.Frequencies != 0)
+    Bicluster.Samples.Frequencies <- Bicluster.Samples.Frequencies[Valid.Sample.Ser.Nos]
+    Order.Bicluster.Samples.Frequencies <- order(Bicluster.Samples.Frequencies,decreasing = T)
+    Bicluster.Samples.Frequencies <- Bicluster.Samples.Frequencies[Order.Bicluster.Samples.Frequencies]
+    Valid.Sample.Ser.Nos <- Valid.Sample.Ser.Nos[Order.Bicluster.Samples.Frequencies]
+
+    if (is.null(SampleEnrichment)){
+      Sample.Ratios.Per.Bicluster <- vector(mode = "numeric",length = length(Valid.Sample.Ser.Nos))
+      for (k in 1:length(Valid.Sample.Ser.Nos))
+      {
+        t <- Bicluster.Samples.Frequencies[k]
+        Sample.Count.In.Graph <- Samples.Background.Frequencies[Valid.Sample.Ser.Nos[k]]
+
+        Sample.Ratios.Per.Bicluster[k] <- (t/Sample.Count.In.Graph)/(No.of.Edges.In.Bicluster/n)
+      }
+
+      Temp.ser.nos <- which(Sample.Ratios.Per.Bicluster >= 1)
+      Samples.In.Bicluster[[i]] <- Valid.Sample.Ser.Nos[Temp.ser.nos]
+    } else {
+      p.value.sample <- vector(mode = "numeric",length = length(Valid.Sample.Ser.Nos))
+      Sample.Ratios.Per.Bicluster <- vector(mode = "numeric",length = length(Valid.Sample.Ser.Nos))
+      for (k in 1:length(Valid.Sample.Ser.Nos))
+      {
+        Temp.Sample.Frequency <- Bicluster.Samples.Frequencies[k]
+        t <- Temp.Sample.Frequency
+
+        Sample.Count.In.Graph <- Samples.Background.Frequencies[Valid.Sample.Ser.Nos[k]]
+        if (No.of.Edges.In.Bicluster <= Sample.Count.In.Graph){
+          b <- No.of.Edges.In.Bicluster
+          a <- Sample.Count.In.Graph
+        } else {
+          a <- No.of.Edges.In.Bicluster
+          b <- Sample.Count.In.Graph
+        }
+        p.value.sample[k] <- sum(dhyper(t:b,a,n-a,b))
+        Sample.Ratios.Per.Bicluster[k] <- (t/Sample.Count.In.Graph)/(No.of.Edges.In.Bicluster/n)
+      }
+      Temp.ser.nos <- which(p.value.sample <= SampleEnrichment & Sample.Ratios.Per.Bicluster >= 1)
+      Samples.In.Bicluster[[i]] <- Valid.Sample.Ser.Nos[Temp.ser.nos]
+    }
+  }
+
+  #Filter out biclusters that have fewer genes than the specified threshold (MinGenes)
+  if (length(which(unlist(lapply(Nodes.In.Bicluster,length)) >= MinGenes)) == 0){
+    stop("No biclusters with ",MinGenes," genes found. Please choose different parameters.")
+  } else {
+    SatisfactoryMinSizeGenes.Biclusters <- which(unlist(lapply(Nodes.In.Bicluster,length)) >= MinGenes)
+    Nodes.In.Bicluster <- Nodes.In.Bicluster[SatisfactoryMinSizeGenes.Biclusters]
+    Samples.In.Bicluster <- Samples.In.Bicluster[SatisfactoryMinSizeGenes.Biclusters]
+  }
+
+  #Find biclusters that contain at least the minimum of samples specified (MinSamples)
+  Biclusters.With.Some.Samples <- which(unlist(lapply(Samples.In.Bicluster,length)) >= MinSamples)
+
+  if (length(Biclusters.With.Some.Samples) == 0 & is.null(SampleEnrichment) == T){
+    stop("No biclusters were found with the given choice of SampleEnrichment. Try with SampleEnrichment = NULL or SampleEnrichment = 1")
+  } else if (length(Biclusters.With.Some.Samples) == 0 & (SampleEnrichment == 1 | is.null(SampleEnrichment) == F)){
+    stop("No bicluster found with at least 3 genes")
+  } else {
+    message("Samples enriched in biclusters identified.")
+  }
+
+  #Filter nodes in biclusters based on the samples found enriched in each bicluster - Approach 1 (Remove nodes based on the overlap of their percentile sets with samples found enriched in the bicluster)
+  Nodes.In.Bicluster <- Nodes.In.Bicluster[Biclusters.With.Some.Samples]
+  Samples.In.Bicluster <- Samples.In.Bicluster[Biclusters.With.Some.Samples]
+
+  #Filter nodes based on their association with samples in subgraphs
+  Nodes.In.Final.Biclusters <- vector(mode = "list",length = length(Nodes.In.Bicluster))
+  for (i in 1:length(Nodes.In.Bicluster))
+  {
+    Temp.Nodes.In.Bicluster <- Nodes.In.Bicluster[[i]]
+    JInd <- vector(mode = "numeric",length = length(Temp.Nodes.In.Bicluster))
+    for (j in 1:length(Temp.Nodes.In.Bicluster))
+    {
+      TempJ <- which(All.Nodes.In.Graph == Temp.Nodes.In.Bicluster[j])
+      Samples.In.WindowJ <- as.numeric(List.Samples.Per.Node[[TempJ]])
+      Intersecting.Samples <- intersect(Samples.In.Bicluster[[i]],Samples.In.WindowJ)
+      JInd[j] <- length(Intersecting.Samples)/(2*N.PercentileSet -  length(Intersecting.Samples))
+    }
+    Temp.Filter.Index <- which(JInd < JaccardInd)
+    if (length(Temp.Filter.Index != 0)){
+      Nodes.In.Final.Biclusters[[i]] <- Nodes.In.Bicluster[[i]][-Temp.Filter.Index]
+    } else {
+      Nodes.In.Final.Biclusters[[i]] <- Nodes.In.Bicluster[[i]]
+    }
+  }
+
+  #Find biclusters that have nodes that are subsets of other biclusters
+  Nested.Biclusters <- vector(mode = "numeric")
+  for (i in 1:length(Nodes.In.Final.Biclusters))
+  {
+    TempI <- length(Nodes.In.Final.Biclusters) - (i-1)
+    Temp.Bicluster.I <- Nodes.In.Final.Biclusters[[TempI]]
+    j <- 1
+    Temp.Intersection <- 1
+    while(Temp.Intersection != 0 & TempI != j){
+      Temp.Bicluster.J <- Nodes.In.Final.Biclusters[[j]]
+      Temp.Intersection <- length(Temp.Bicluster.I) - length(intersect(Temp.Bicluster.I,Temp.Bicluster.J))
+      if (Temp.Intersection == 0 & TempI != j & length(Temp.Bicluster.J) >= length(Temp.Bicluster.I)){
+        Nested.Biclusters <- c(Nested.Biclusters,TempI)
+      }
+      j <- j + 1
+    }
+  }
+
+  #Remove biclusters that are nested within larger biclusters
+  if (length(Nested.Biclusters) != 0){
+    Nodes.In.Final.Biclusters <- Nodes.In.Final.Biclusters[-Nested.Biclusters]
+    Samples.In.Bicluster <- Samples.In.Bicluster[-Nested.Biclusters]
+  }
+
+  if (length(Nodes.In.Final.Biclusters) > 1){
+    Bicluster.Size.Order <- order(unlist(lapply(Nodes.In.Final.Biclusters,length)),decreasing = T)
+  } else if (length(Nodes.In.Final.Biclusters) < 2 & length(Nodes.In.Final.Biclusters[[1]]) != 0){
+    Bicluster.Size.Order <- 1
+  } else {
+    stop("No bicluster found with given choice of parameters.")
+  }
+
+  Nodes.In.Final.Biclusters <- Nodes.In.Final.Biclusters[Bicluster.Size.Order]
+  Samples.In.Bicluster <- Samples.In.Bicluster[Bicluster.Size.Order]
+
+  #Filter out biclusters that have fewer genes than the specified threshold (MinGenes)
+  if (length(which(unlist(lapply(Nodes.In.Final.Biclusters,length)) >= MinGenes)) == 0){
+    stop("No biclusters with ",MinGenes," genes found. Please choose different parameters.")
+  } else {
+    SatisfactoryMinSizeGenes.Biclusters <- which(unlist(lapply(Nodes.In.Final.Biclusters,length)) >= MinGenes)
+    Nodes.In.Final.Biclusters <- Nodes.In.Final.Biclusters[SatisfactoryMinSizeGenes.Biclusters]
+    Samples.In.Bicluster <- Samples.In.Bicluster[SatisfactoryMinSizeGenes.Biclusters]
+  }
+
+  message("Nodes in final biclusters identified.")
+
+  #Make bicluster-samples matrix
+  Bicluster.Samples.List <- vector(mode = "list",length = length(Samples.In.Bicluster))
+  for (i in 1:length(Samples.In.Bicluster))
+  {
+    Bicluster.Samples.List[[i]] <- paste(Samples.In.Bicluster[[i]],collapse = "/")
+  }
+
+  if (length(lapply(Bicluster.Samples.List,length)) != 0){
+    MinBiclusterSamples <- min(unlist(lapply(Samples.In.Bicluster,length)))
+    No.of.Samples <- length(Sample.IDs)
+  } else {
+    MinBiclusterSamples <- 0
+  }
+
+  Temp.No.of.Nodes.In.Bicluster <- unlist(lapply(Nodes.In.Final.Biclusters,length))
+  if (length(Temp.No.of.Nodes.In.Bicluster) != 0){
+    MinBiclusterGenes <- min(Temp.No.of.Nodes.In.Bicluster)
+  } else {
+    MinBiclusterGenes <- 0
+  }
+
+  OriginalMinSamples <- MinSamples
+  if (MinBiclusterSamples > MinSamples)
+    MinSamples <- MinBiclusterSamples
+
+  if (OriginalMinSamples != 2){
+    message(paste0("Found ",length(Nodes.In.Final.Biclusters)," biclusters with at least ",MinGenes," genes and ",OriginalMinSamples," samples."))
+  } else {
+    message(paste0("Found ",length(Nodes.In.Final.Biclusters)," biclusters with at least ",MinGenes," genes and ",MinSamples," samples."))
+  }
+
+  #Prepare the output files
+  if (length(Nodes.In.Final.Biclusters) != 0){
+
+    Nodes.Biclusters.Info.df <- data.frame(Node.Names[unlist(Nodes.In.Final.Biclusters)],rep(1:length(Nodes.In.Final.Biclusters),unlist(lapply(Nodes.In.Final.Biclusters,length))))
+    colnames(Nodes.Biclusters.Info.df) <- c("Gene.ID","Bicluster.No")
+
+    No.of.Samples.In.Bicluster <- vector(mode = "numeric",length = length(Nodes.Biclusters.Info.df$Gene.ID))
+    Samples.Per.Gene.In.Bicluster <- vector(mode = "list",length = length(Nodes.Biclusters.Info.df$Gene.ID))
+    No.of.Samples.Per.Gene.In.Bicluster <- vector(mode = "numeric",length = length(Nodes.Biclusters.Info.df$Gene.ID))
+    Proportion.of.Samples.In.Bicluster <- vector(mode = "numeric",length = length(Nodes.Biclusters.Info.df$Gene.ID))
+    Genes.Bicluster.Samples.List <- vector(mode = "list",length = length(Nodes.Biclusters.Info.df$Gene.ID))
+    Samples.In.Bicluster.Vec <- vector(mode = "character",length = length(Nodes.Biclusters.Info.df$Gene.ID))
+    for (i in 1:length(Nodes.Biclusters.Info.df$Gene.ID))
+    {
+      Gene.Ser.No <- which(Node.Names == Nodes.Biclusters.Info.df$Gene.ID[i])
+      Bicluster.No <- Nodes.Biclusters.Info.df$Bicluster.No[i]
+
+      No.of.Samples.In.Bicluster[i] <- length(Samples.In.Bicluster[[Bicluster.No]])
+      Samples.Per.Gene.In.Bicluster[[i]] <- intersect(List.Samples.Per.Node[[which(All.Nodes.In.Graph == Gene.Ser.No)]],Samples.In.Bicluster[[Bicluster.No]])
+      Samples.In.Bicluster.Vec[i] <- Bicluster.Samples.List[[Bicluster.No]]
+      No.of.Samples.Per.Gene.In.Bicluster[i] <- length(Samples.Per.Gene.In.Bicluster[[i]])
+      Proportion.of.Samples.In.Bicluster[i] <- No.of.Samples.Per.Gene.In.Bicluster[i]/No.of.Samples.In.Bicluster[i]
+      Genes.Bicluster.Samples.List[[i]] <- paste(Samples.Per.Gene.In.Bicluster[[i]],collapse = "/")
+    }
+
+    Nodes.Biclusters.Info.df$Total.Samples.In.Bicluster <- No.of.Samples.In.Bicluster
+    Nodes.Biclusters.Info.df$Samples.In.Bicluster <- Samples.In.Bicluster.Vec
+    Nodes.Biclusters.Info.df$Total.Samples.Per.Gene<- No.of.Samples.Per.Gene.In.Bicluster
+    Nodes.Biclusters.Info.df$Samples.Per.Gene.In.Bicluster <- unlist(Genes.Bicluster.Samples.List)
+    Nodes.Biclusters.Info.df$Proportion.of.Samples <- Proportion.of.Samples.In.Bicluster
+
+    if (Out == T){
+
+      File.Name <- paste0("MinGenes",MinBiclusterGenes,"_MinSamples",MinBiclusterSamples,"_GenesInBiclusters","_Window",Window,".csv")
+      write.table(Nodes.Biclusters.Info.df,file = File.Name,row.names = F,col.names = T,sep = ",")
+    }
+    PiccoloList$BiclusterOutput <- Nodes.Biclusters.Info.df
+  }
+  return(PiccoloList)
+}
+
 
