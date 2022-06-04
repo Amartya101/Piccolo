@@ -1070,9 +1070,9 @@ DEfeatures <- function(PiccoloList,Group1,Group2,Out = F){
   p.val.vec <- p.val.vec[order(log2FC.vec,decreasing = T)]
   p.adj.vec <- p.adjust(p.val.vec,method = "BH")
   if (is.null(ncol(Features)) != T){
-    Genes <- Features[order(log2FC.vec,decreasing = T),]
-  } else {
     Genes <- Features[,order(log2FC.vec,decreasing = T)]
+  } else {
+    Genes <- Features[order(log2FC.vec,decreasing = T)]
   }
 
   Base.Mean.vec <- Base.Mean.vec[order(log2FC.vec,decreasing = T)]
