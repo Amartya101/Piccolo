@@ -39,7 +39,7 @@ The *Normalize* function has 7 arguments - *PiccoloList*, *VarFeatures*, *Transf
 
 Examples of valid function calls are provided below:
 ```
-pbmc3k <- Normalize(PiccoloList = PiccList)
+pbmc3k <- Normalize(PiccoloList = pbmc3k)
 pbmc3k <- Normalize(PiccoloList = pbmc3k, ReferenceLevel = 0.3,MinPercNonZero = 0.5,Out = T)
 ```
 
