@@ -85,5 +85,5 @@ Group2 = c(4,6,8,9,10,..))
 This project is licensed under the GPL-3.0 License - see the [LICENSE.md](LICENSE.md) file for details
 
 ## Acknowledgments
-*[Khiabanian Lab](https://khiabanian-lab.org)
+* [Khiabanian Lab](https://khiabanian-lab.org)
 
