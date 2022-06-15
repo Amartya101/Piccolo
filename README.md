@@ -67,7 +67,7 @@ Levels = c("b-cells","cd14 monocytes","dendritic","NK cells","naive cytotoxic"))
 p
 ```
 ### Perform differential expression analysis between 2 groups of cells
-The *DEfeatures* function can be used to normalize the standardized values such that they lie in the 0 to 1 range. Subsequently, the Mann-Whitney U test is employed to determine whether any of the given features are differentially expressed between 2 groups of cells specified by the user. *Group1* and *Group2* should contain the serial numbers of cells that belong to the respective groups. The output is a data frame that contains the log2FC of the normalized standardized values of the *Group1* cells relative to *Group2* cells, the base mean expression level (in normalized values) of each feature, and the p-values obtained from the Mann-Whitney U test.
+The *DEfeatures* function can be used to max-min normalize the standardized values such that they lie in the 0 to 1 range. Subsequently, the Mann-Whitney U test is employed to determine whether any of the given features are differentially expressed between 2 groups of cells specified by the user. *Group1* and *Group2* should contain the serial numbers of cells that belong to the respective groups. The output is a data frame that contains the log2FC of the normalized standardized values of the *Group1* cells relative to *Group2* cells, the base mean expression level (in normalized values) of each feature, and the p-values obtained from the Mann-Whitney U test.
 
 Example of a valid function call is provided below:
 ```
