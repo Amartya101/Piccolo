@@ -56,7 +56,7 @@ pbmc3k <- UMAPcoords(PiccoloList = pbmc3k)
 ```
 
 ### Label cells on UMAP
-This function can be used to make the UMAP plots and color the cells based on labels provided by the user. *Labels* should contain the character labels for all the cells in the same order as the cells in the counts matrix.
+The *LabelUMAP* function can be used to make the UMAP plots and color the cells based on labels provided by the user. *Labels* should contain the character labels for all the cells in the same order as the cells in the counts matrix.
 
 Example of a valid function call is provided below:
 ```
@@ -65,6 +65,15 @@ Labels = c("b-cells","b-cells",..,"cd14 monocytes",..,"NK cells",..),
 Levels = c("b-cells","cd14 monocytes","dendritic","NK cells","naive cytotoxic"))
 
 p
+```
+### Perform differential expression analysis between 2 groups of cells
+The *DEfeatures* function can be used to normalize the standardized values such that they lie in the 0 to 1 range. Subsequently, the Mann-Whitney U test is employed to determine whether the expression levels of any given features are differentially expressed between 2 groups of cells specified by the user. *Group1* and *Group2* should contain the serial numbers of cells that belong to the respective groups. The output is a data frame that contains the log2FC of the normalized standardized values of the *Group1* cells relative to *Group2* cells, the base mean expression level (in normalized values) of each feature, and the p-values obtained from the Mann-Whitney U test.
+
+Example of a valid function call is provided below:
+```
+DE.Res.df <- DEfeatures(PiccoloList = pbmc3k,
+Group1 = c(2,3,5,7,11,..),
+Group2 = c(4,6,8,9,10,..))
 ```
 
 ## Authors
