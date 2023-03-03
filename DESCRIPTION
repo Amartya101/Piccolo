@@ -9,13 +9,21 @@ Suggests: stats, utils
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.1.1
+RoxygenNote: 7.2.1
 biocViews:
 Imports: 
     data.table,
     ggplot2,
+    igraph,
     ggnetwork,
+    ggrepel,
     network,
     Matrix,
+    matrixTests,
     methods,
-    umap
+    RSpectra,
+    dbscan,
+    cluster,
+    umap,
+    Rtsne,
+    viridis
