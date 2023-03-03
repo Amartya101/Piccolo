@@ -1,5 +1,5 @@
 # Piccolo
-An R package for processing and analyzing single-cell counts data ([Preprint](https://www.biorxiv.org/content/10.1101/2023.03.02.530891v1))
+An R package for processing and analyzing single-cell counts data ([preprint](https://www.biorxiv.org/content/10.1101/2023.03.02.530891v1))
 
 ## Getting Started
 
