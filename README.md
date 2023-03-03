@@ -24,7 +24,7 @@ The central object in the Piccolo workflow is the PiccoloList. Given the single-
 ### CreatePiccoloList
 The *CreatePiccoloList* function requires the following inputs - *MTX*, *Genes*, *Barcodes*. Assuming all the files are located in the current working directory, *MTX* should be the full name of the .mtx or .mtx.gz file that contains the gene counts. *Genes* should be the full name of the .tsv file that contains the information of the genes/features. *Barcodes* should be the full name of the .tsv file that contains the information of the barcodes. 
 
-Here is an example of a valid function call
+Here is an example of a valid function call (the 10X PBMC3k data set used as an example here can be found in the [PBMC3k_Data]()):
 
 ```
 pbmc3k <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx", Gene = "10X_PBMC3k_features.tsv", Barcode = "10X_PBMC3k_barcodes.tsv")
