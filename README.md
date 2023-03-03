@@ -1,5 +1,5 @@
 # Piccolo
-An R package for processing and analyzing single-cell counts data (preprint)
+An R package for processing and analyzing single-cell counts data ([Preprint](https://www.biorxiv.org/content/10.1101/2023.03.02.530891v1))
 
 ## Getting Started
 
@@ -105,7 +105,7 @@ p <- LabelUMAP(PiccoloList = pbmc3k, Labels = PiccoloList$ClusterLabels,Title = 
 p
 ```
 ### Perform differential expression analysis between 2 groups of cells
-The *PerformDiffExp* function employs either the Student's t-test (by specifying *Method = "t.test"*) or the Wilcoxon rank-sum test (by specifying *Method = "wilcoxon") to determine whether any of the given features are differentially expressed between 2 groups of cells specified by the user. *Group1* and *Group2* should contain the serial numbers of cells that belong to the respective groups.
+The *PerformDiffExp* function employs either the Student's t-test (by specifying *Method = "t.test"*) or the Wilcoxon rank-sum test (by specifying *Method = "wilcoxon"*) to determine whether any of the given features are differentially expressed between 2 groups of cells specified by the user. *Group1* and *Group2* should contain the serial numbers of cells that belong to the respective groups.
 
 Example of a valid function call is provided below:
 ```
