@@ -27,7 +27,7 @@ The *CreatePiccoloList* function requires the following inputs - *MTX*, *Genes*,
 Here is an example of a valid function call (the 10X PBMC3k data set used as an example here can be found in the [PBMC3k_Data](https://github.com/Amartya101/PBMC3k_Data) repository):
 
 ```
-pbmc3k <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx", Gene = "10X_PBMC3k_features.tsv", Barcode = "10X_PBMC3k_barcodes.tsv")
+pbmc3k <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz", Gene = "10X_PBMC3k_features.tsv", Barcode = "10X_PBMC3k_barcodes.tsv")
 ```
 This will create a list that contains the counts matrix, the features data frame, and the barcodes.
 
