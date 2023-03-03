@@ -31,7 +31,7 @@ pbmc3k <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx", Gene = "10X_PBMC3k_feat
 ```
 This will create a list that contains the counts matrix, the features data frame, and the barcodes.
 
-###FilterCells 
+### FilterCells 
 The *FilterCells* function is used to perform basic cell filtering based on criterias such as the minimum number of genes with non-zero counts within each cell (specified through the argument *MinFeaturesPerCell*), the maximum percentage of total counts contributed by mitochondrial genes within each cell (specified by the argument *MT.Perc*), the the maximum percentage of total counts contributed by ribosomal genes within each cell (specified by the argument *RP.Perc*), and the maximum or minimum total counts that any cell can have based on how many median absolute deviation away from the median the total count of any given cell is.
 
 Examples of valid function calls are given below:
