@@ -76,7 +76,7 @@ pbmc3k <- ComputePC(PiccoloList = pbmc3k,NoOfPC = 20,Out = T) # for Top 20 PCs, 
 pbmc3k <- UMAPcoords(PiccoloList = pbmc3k, Out = T)
 ```
 ### Clustering
-After the principal components have been computed. We can use the *KNearestNeighbors* function to identify the *k* nearest-neighbors of every cell based on the PC coordinates (default *k* is 10). After obtaining the nearest-neighbors we can use graph-based partitioning algorithm such as Leiden to identify clusters of cells. This can be accomplished by using the *LeidenClustering* function. 
+After the principal components have been computed, we can use the *KNearestNeighbors* function to identify the *k* nearest-neighbors of every cell based on the PC coordinates (default *k* is 10). After obtaining the nearest-neighbors we can use graph-based partitioning algorithm such as Leiden to identify clusters of cells. This can be accomplished by using the *LeidenClustering* function. 
 
 Examples of valid function calls:
 
