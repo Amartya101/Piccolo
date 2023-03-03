@@ -27,7 +27,7 @@ The *CreatePiccoloList* function requires the following inputs - *MTX*, *Genes*,
 Here is an example of a valid function call (the 10X PBMC3k data set used as an example here can be found in the [PBMC3k_Data](https://github.com/Amartya101/PBMC3k_Data) repository):
 
 ```
-pbmc3k <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx.gz", Gene = "10X_PBMC3k_features.tsv", Barcode = "10X_PBMC3k_barcodes.tsv")
+pbmc3k <- CreatePiccoloList(MTX = "10X_PBMC3k_matrix.mtx.gz", Genes = "10X_PBMC3k_features.tsv", Barcodes = "10X_PBMC3k_barcodes.tsv")
 ```
 This will create a list that contains the counts matrix, the features data frame, and the barcodes.
 
@@ -50,7 +50,7 @@ Examples of valid function calls are given below:
 ```
 pbmc3k <- SelectFeatures(PiccoloList = pbmc3k)
 pbmc3k <- SelectFeatures(PiccoloList = pbmc3k,
-NoOfHVG = 3000, Out = T)
+ NoOfHVG = 3000, Out = T)
 ```
 
 ### Normalize
@@ -80,23 +80,24 @@ After the principal components have been computed, we can use the *KNearestNeigh
 
 Examples of valid function calls:
 
-'''
+```
 pbmc3k <- KNearestNeighbors(PiccoloList = pbmc3k)
 pbmc3k <- LeidenClustering(PiccoloList = pbmc3k)
 pbmc3k <- LeidenClustering(PiccoloList = pbmc3k,
-Resolution = 1.5)
-'''
+ Resolution = 1.5)
+```
 
 ### Label cells on UMAP
 The *LabelUMAP* function can be used to make the UMAP plots and color the cells based on labels provided by the user. *Labels* should contain the character labels for all the cells in the same order as the cells in the counts matrix.
 
 Examples of valid function calls are provided below:
+
 ```
 CellLabels <- c("b-cells","b-cells",..,"cd14 monocytes",..,"NK cells",..)
 p <- LabelUMAP(PiccoloList = pbmc3k,
-Labels = CellLabels,
-Levels = c("b-cells","cd14 monocytes","dendritic","NK cells","naive cytotoxic")
-Title = "PBMC3k")
+ Labels = CellLabels,
+ Levels = c("b-cells","cd14 monocytes","dendritic","NK cells","naive cytotoxic"),
+ Title = "PBMC3k")
 
 p
 
@@ -104,17 +105,19 @@ p <- LabelUMAP(PiccoloList = pbmc3k, Labels = PiccoloList$ClusterLabels,Title = 
 
 p
 ```
+
 ### Perform differential expression analysis between 2 groups of cells
 The *PerformDiffExp* function employs either the Student's t-test (by specifying *Method = "t.test"*) or the Wilcoxon rank-sum test (by specifying *Method = "wilcoxon"*) to determine whether any of the given features are differentially expressed between 2 groups of cells specified by the user. *Group1* and *Group2* should contain the serial numbers of cells that belong to the respective groups.
 
 Example of a valid function call is provided below:
+
 ```
 Group1.vec <- 1:200
 Group2.vec <- 301:500
 pbmc3k <- PerformDiffExp(PiccoloList = pbmc3k,
-Group1 = Group1.vec,
-Group2 = Group2.vec,
-Out = T)
+ Group1 = Group1.vec,
+ Group2 = Group2.vec,
+ Out = T)
 ```
 
 ## Authors
