@@ -27,7 +27,7 @@ The *CreatePiccoloList* function requires the following inputs - *MTX*, *Genes*,
 Here is an example of a valid function call
 
 ```
-pbmc3k <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx", Gene = "10X_PBMC3k_features.tsv", Barcode = "10X_PBMC3k_barcodes.tsv", RP.Perc = 80)
+pbmc3k <- CreatePiccoloList(X = "10X_PBMC3k_matrix.mtx", Gene = "10X_PBMC3k_features.tsv", Barcode = "10X_PBMC3k_barcodes.tsv")
 ```
 This will create a list that contains the counts matrix, the features data frame, and the barcodes.
 
@@ -75,17 +75,32 @@ pbmc3k <- ComputePC(PiccoloList = pbmc3k,NoOfPC = 20,Out = T) # for Top 20 PCs, 
 
 pbmc3k <- UMAPcoords(PiccoloList = pbmc3k, Out = T)
 ```
+### Clustering
+After the principal components have been computed. We can use the *KNearestNeighbors* function to identify the *k* nearest-neighbors of every cell based on the PC coordinates (default *k* is 10). After obtaining the nearest-neighbors we can use graph-based partitioning algorithm such as Leiden to identify clusters of cells. This can be accomplished by using the *LeidenClustering* function. 
+
+Examples of valid function calls:
+
+'''
+pbmc3k <- KNearestNeighbors(PiccoloList = pbmc3k)
+pbmc3k <- LeidenClustering(PiccoloList = pbmc3k)
+pbmc3k <- LeidenClustering(PiccoloList = pbmc3k,
+Resolution = 1.5)
+'''
 
 ### Label cells on UMAP
 The *LabelUMAP* function can be used to make the UMAP plots and color the cells based on labels provided by the user. *Labels* should contain the character labels for all the cells in the same order as the cells in the counts matrix.
 
-Example of a valid function call is provided below:
+Examples of valid function calls are provided below:
 ```
 CellLabels <- c("b-cells","b-cells",..,"cd14 monocytes",..,"NK cells",..)
 p <- LabelUMAP(PiccoloList = pbmc3k,
 Labels = CellLabels,
 Levels = c("b-cells","cd14 monocytes","dendritic","NK cells","naive cytotoxic")
 Title = "PBMC3k")
+
+p
+
+p <- LabelUMAP(PiccoloList = pbmc3k, Labels = PiccoloList$ClusterLabels,Title = "PBMC3k")
 
 p
 ```
