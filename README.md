@@ -37,6 +37,7 @@ The *FilterCells* function is used to perform basic cell filtering based on crit
 Examples of valid function calls are given below:
 ```
 pbmc3k <- FilterCells(PiccoloList = pbmc3k)
+
 pbmc3k <- FilterCells(PiccoloList = pbmc3k,
  MinFeaturesPerCell = 100, MT.Perc = 50,
  RP.Perc = 70,TotalCountsMADHigh = 3.5,
@@ -49,6 +50,7 @@ The *SelectFeatures* function performs feature selection by identifying highly v
 Examples of valid function calls are given below:
 ```
 pbmc3k <- SelectFeatures(PiccoloList = pbmc3k)
+
 pbmc3k <- SelectFeatures(PiccoloList = pbmc3k,
  NoOfHVG = 3000, Out = T)
 ```
@@ -61,6 +63,7 @@ The *Normalize* function computes the residuals for the counts of the HVGs. You 
 Examples of valid function calls are given below:
 ```
 pbmc3k <- Normalize(PiccoloList = pbmc3k)
+
 pbmc3k <- Normalize(PiccoloList = pbmc3k, Transform = "bc")
 ```
 
@@ -71,6 +74,7 @@ After the normalized counts have been obtained using the *Normalize* function, w
 Examples of valid function calls:
 ```
 pbmc3k <- ComputePC(PiccoloList = pbmc3k)
+
 pbmc3k <- ComputePC(PiccoloList = pbmc3k,NoOfPC = 20,Out = T) # for Top 20 PCs, and will generate an output .csv file containing the PCs
 
 pbmc3k <- UMAPcoords(PiccoloList = pbmc3k, Out = T)
@@ -82,7 +86,9 @@ Examples of valid function calls:
 
 ```
 pbmc3k <- KNearestNeighbors(PiccoloList = pbmc3k)
+
 pbmc3k <- LeidenClustering(PiccoloList = pbmc3k)
+
 pbmc3k <- LeidenClustering(PiccoloList = pbmc3k,
  Resolution = 1.5)
 ```
