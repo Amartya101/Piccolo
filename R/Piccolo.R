@@ -2628,7 +2628,7 @@ PerformDiffExp <- function (PiccoloList, Group1, Group2, Transform = "log", Meth
     Res.df <- data.frame(obs.x = c(1,2), obs.y = c(1,2), obs.tot = c(1,2), mean.x = c(1,2), mean.y = c(1,2), mean.diff = c(1, 2), var.x = c(1, 2), var.y = c(1,2), var.pooled = c(1, 2), stderr = c(1, 2), df = c(1,2), statistic = c(1,2), pvalue = c(1,2), conf.low = c(1,2), conf.high = c(1,2))
   }
   else if (Method == "wilcoxon") {
-    Res.df <- data.frame(obs.x = c(1,2), obs.y = c(1,2), obs.tot = c(1,2), statistic = c(1,2), pvalue = c(1,2))
+    Res.df <- data.frame(obs.x = c(1,2), obs.y = c(1,2), obs.tot = c(1,2), mean.x = c(1,2), mean.y = c(1,2), mean.diff = c(1, 2), statistic = c(1,2), pvalue = c(1,2))
   }
   for (i in 1:length(Seq.Nos)) {
     if (i < length(Seq.Nos)) {
