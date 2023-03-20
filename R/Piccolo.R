@@ -1693,9 +1693,9 @@ ResidualSF <- function(X,Transform,SF,Lambda = NULL,verbose = T){
   } else if (Transform == "AnalyticPearson"){
 
     #For analytic Pearson transform
-    if (verbose)
-    message("Calculating Analytic Pearson residuals...")
-
+    if (verbose == T){
+      message("Calculating Analytic Pearson residuals...")
+    }
     Seq.Nos <- seq(1,ncol(X),500)
 
     Trans.Mat <- matrix(0,nrow = 2,ncol = nrow(X))
@@ -1729,7 +1729,10 @@ ResidualSF <- function(X,Transform,SF,Lambda = NULL,verbose = T){
   } else if (Transform == "logSF" | Transform == "LogSF"){
 
     #For log transform
-    message("LogSF transforming counts...")
+    if (verbose == T){
+      message("LogSF transforming counts...")
+    }  
+
 
     Seq.Nos <- seq(1,ncol(X),500)
 
@@ -2590,86 +2593,75 @@ tSNEZScores <- function(PiccoloList,Name,xLabel = T,yLabel = T,BaseSize = 28,Upp
 #' Group2 = Group2.vec,
 #' Out = T)
 #' }
-PerformDiffExp <- function(PiccoloList,Group1,Group2,Transform = "log",Method = "t.test",Out = F){
-
+PerformDiffExp <- function (PiccoloList, Group1, Group2, Transform = "log", Method = "t.test", Out = F){
   Relevant.Counts.Mat <- Matrix::t(PiccoloList$Counts)
-
-  if (is.null(dim(PiccoloList$RelevantGenes))){
-    if (is.list(PiccoloList$RelevantGenes)){
+  if (is.null(dim(PiccoloList$RelevantGenes))) {
+    if (is.list(PiccoloList$RelevantGenes)) {
       Features <- PiccoloList$RelevantGenes[[1]]
       RelevantGenesSerNos <- PiccoloList$RelevantGenes.Ser.Nos[[1]]
-    } else {
+    }
+    else {
       Features <- PiccoloList$RelevantGenes
       RelevantGenesSerNos <- PiccoloList$RelevantGenes.Ser.Nos
     }
-  } else {
+  }
+  else {
     Features <- data.frame(V1 = PiccoloList$RelevantGenes$V1,V2 = PiccoloList$RelevantGenes$V2)
     RelevantGenesSerNos <- PiccoloList$RelevantGenes.Ser.Nos
   }
-
   Relevant.Counts.Mat <- Relevant.Counts.Mat[,RelevantGenesSerNos]
-
-  #Rescale the counts using size factors
   Scaled.Counts.Mat <- Relevant.Counts.Mat/PiccoloList$SizeFactors
-
   Relevant.Counts.Mat.Group1 <- Matrix::t(Scaled.Counts.Mat)
   Relevant.Counts.Mat.Group1 <- Relevant.Counts.Mat.Group1[,Group1]
   Relevant.Counts.Mat.Group1 <- Matrix::t(Relevant.Counts.Mat.Group1)
   PercNonZero.Group1 <- diff(Relevant.Counts.Mat.Group1@p)/length(Group1) * 100
-
   Relevant.Counts.Mat.Group2 <- Matrix::t(Scaled.Counts.Mat)
   Relevant.Counts.Mat.Group2 <- Relevant.Counts.Mat.Group2[,Group2]
   Relevant.Counts.Mat.Group2 <- Matrix::t(Relevant.Counts.Mat.Group2)
   PercNonZero.Group2 <- diff(Relevant.Counts.Mat.Group2@p)/length(Group2) * 100
-
   GeneMeans.Group1 <- Matrix::colMeans(Relevant.Counts.Mat.Group1)
   GeneMeans.Group2 <- Matrix::colMeans(Relevant.Counts.Mat.Group2)
   Log2FC.Means <- log2((GeneMeans.Group1 + 1/dim(Relevant.Counts.Mat)[1])/(GeneMeans.Group2 + 1/dim(Relevant.Counts.Mat)[1]))
-
   Barcodes <- PiccoloList$Barcodes
-
-  Seq.Nos <- seq(1,ncol(Relevant.Counts.Mat),500)
-
-  if (Method == "t.test"){
-    Res.df <- data.frame(obs.x = c(1,2),obs.y = c(1,2),obs.tot = c(1,2), mean.x = c(1,2), mean.y = c(1,2), mean.diff = c(1,2), var.x = c(1,2), var.y = c(1,2), var.pooled = c(1,2), stderr = c(1,2), df = c(1,2) ,statistic = c(1,2),pvalue = c(1,2),conf.low = c(1,2), conf.high = c(1,2))
-  } else if (Method == "wilcoxon"){
-    Res.df <- data.frame(obs.x = c(1,2),obs.y = c(1,2),obs.tot = c(1,2), statistic = c(1,2),pvalue = c(1,2))
+  Seq.Nos <- seq(1, ncol(Relevant.Counts.Mat), 500)
+  if (Method == "t.test") {
+    Res.df <- data.frame(obs.x = c(1,2), obs.y = c(1,2), obs.tot = c(1,2), mean.x = c(1,2), mean.y = c(1,2), mean.diff = c(1, 2), var.x = c(1, 2), var.y = c(1,2), var.pooled = c(1, 2), stderr = c(1, 2), df = c(1,2), statistic = c(1,2), pvalue = c(1,2), conf.low = c(1,2), conf.high = c(1,2))
   }
-
-  for (i in 1:length(Seq.Nos))
-  {
-    if (i < length(Seq.Nos)){
+  else if (Method == "wilcoxon") {
+    Res.df <- data.frame(obs.x = c(1,2), obs.y = c(1,2), obs.tot = c(1,2), statistic = c(1,2), pvalue = c(1,2))
+  }
+  for (i in 1:length(Seq.Nos)) {
+    if (i < length(Seq.Nos)) {
       Start.Point <- Seq.Nos[i]
-      End.Point <- Seq.Nos[i+1] - 1
-    } else {
+      End.Point <- Seq.Nos[i + 1] - 1
+    }
+    else {
       Start.Point <- Seq.Nos[i]
       End.Point <- length(RelevantGenesSerNos)
     }
-
     Temp.UMI.Mat <- Relevant.Counts.Mat[,Start.Point:End.Point]
-
-    Temp.UMI.Mat <- ResidualSF(Temp.UMI.Mat,Transform = Transform,SF = PiccoloList$SizeFactors)
-
-    if (Method == "t.test"){
-      Temp.Res.df <- matrixTests::row_t_equalvar(Temp.UMI.Mat[,Group1],Temp.UMI.Mat[,Group2])
+    Temp.UMI.Mat <- ResidualSF(Temp.UMI.Mat, Transform = Transform, SF = PiccoloList$SizeFactors)
+    if (Method == "t.test") {
+      Temp.Res.df <- matrixTests::row_t_equalvar(Temp.UMI.Mat[,Group1], Temp.UMI.Mat[,Group2])
       Temp.Res.df <- Temp.Res.df[,1:15]
-    } else if (Method == "wilcoxon"){
-      Temp.Res.df <- matrixTests::row_wilcoxon_twosample(Temp.UMI.Mat[,Group1],Temp.UMI.Mat[,Group2])
-      Temp.Res.df <- Temp.Res.df[,1:5]
     }
-
-    Res.df <- rbind(Res.df,Temp.Res.df)
-    if (i == 1){
-      Res.df <- Res.df[-c(1,2),]
+    else if (Method == "wilcoxon") {
+      Temp.Res.df <- matrixTests::row_wilcoxon_twosample(Temp.UMI.Mat[,Group1], Temp.UMI.Mat[,Group2])
+      Mean.x <- rowMeans(Temp.UMI.Mat[,Group1])
+      Mean.y <- rowMeans(Temp.UMI.Mat[,Group2])
+      Mean.Diff <- Mean.x - Mean.y
+      
+      Temp.Res.df <- Temp.Res.df[,1:5]
+      Temp.df <- data.frame(obs.x = Temp.Res.df$obs.x,obs.y = Temp.Res.df$obs.y, obs.tot = Temp.Res.df$obs.tot,mean.x = Mean.x, mean.y = Mean.y, mean.diff = Mean.Diff, statistic = Temp.Res.df$statistic, pvalue = Temp.Res.df$pvalue)
+    }
+    Res.df <- rbind(Res.df,Temp.df)
+    if (i == 1) {
+      Res.df <- Res.df[-c(1, 2),]
     }
   }
-
   p.val.vec <- Res.df$pvalue
-
   p.adj.vec <- p.adjust(p.val.vec, method = "BH")
-
   Genes <- Features
-
   SortOrder <- order(p.adj.vec)
   Res.df <- Res.df[SortOrder,]
   log2FC.vec <- Log2FC.Means[SortOrder]
@@ -2678,20 +2670,19 @@ PerformDiffExp <- function(PiccoloList,Group1,Group2,Transform = "log",Method = 
   GeneMeans.Group2 <- GeneMeans.Group2[SortOrder]
   PercNonZero.Group1 <- PercNonZero.Group1[SortOrder]
   PercNonZero.Group2 <- PercNonZero.Group2[SortOrder]
-
-  if (is.null(dim(Genes))){
+  if (is.null(dim(Genes))) {
     Genes <- Genes[SortOrder]
-    DE.Res.df <- data.frame(Genes,Res.df,p.adj.vec,log2FC.vec,GeneMeans.Group1,GeneMeans.Group2,PercNonZero.Group1,PercNonZero.Group2)
-    colnames(DE.Res.df) <- c("Gene.ID",colnames(Res.df),"p.adj(BH)","Log2FC.Means","Mean.Group1","Mean.Group2","PercNonZero.Group1","PercNonZero.Group2")
-  } else {
-    Genes <- Genes[SortOrder,]
-    DE.Res.df <- data.frame(Genes,Res.df,p.adj.vec,log2FC.vec,GeneMeans.Group1,GeneMeans.Group2,PercNonZero.Group1,PercNonZero.Group2)
-    colnames(DE.Res.df) <- c(colnames(Genes),colnames(Res.df),"p.adj(BH)","Log2FC.Means","Mean.Group1","Mean.Group2","PercNonZero.Group1","PercNonZero.Group2")
+    DE.Res.df <- data.frame(Genes, Res.df, p.adj.vec, log2FC.vec, GeneMeans.Group1, GeneMeans.Group2, PercNonZero.Group1, PercNonZero.Group2)
+    colnames(DE.Res.df) <- c("Gene.ID", colnames(Res.df), "p.adj(BH)", "Log2FC.Means", "Mean.Group1", "Mean.Group2", "PercNonZero.Group1", "PercNonZero.Group2")
   }
-
+  else {
+    Genes <- Genes[SortOrder,]
+    DE.Res.df <- data.frame(Genes, Res.df, p.adj.vec, log2FC.vec, GeneMeans.Group1, GeneMeans.Group2, PercNonZero.Group1, PercNonZero.Group2)
+    colnames(DE.Res.df) <- c(colnames(Genes), colnames(Res.df), "p.adj(BH)", "Log2FC.Means", "Mean.Group1", "Mean.Group2", "PercNonZero.Group1", "PercNonZero.Group2")
+  }
   if (Out == T) {
     FileName <- paste0("DEResults", ".csv")
-    data.table::fwrite(DE.Res.df,file = FileName,row.names = F,col.names = T,sep = ",")
+    data.table::fwrite(DE.Res.df, file = FileName, row.names = F, col.names = T, sep = ",")
   }
   PiccoloList$DE.Results <- DE.Res.df
   return(PiccoloList)
