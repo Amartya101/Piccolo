@@ -2642,8 +2642,8 @@ PerformDiffExp <- function (PiccoloList, Group1, Group2, Transform = "log", Meth
     Temp.UMI.Mat <- Relevant.Counts.Mat[,Start.Point:End.Point]
     Temp.UMI.Mat <- ResidualSF(Temp.UMI.Mat, Transform = Transform, SF = PiccoloList$SizeFactors,verbose = F)
     if (Method == "t.test") {
-      Temp.Res.df <- matrixTests::row_t_equalvar(Temp.UMI.Mat[,Group1], Temp.UMI.Mat[,Group2])
-      Temp.Res.df <- Temp.Res.df[,1:15]
+      Temp.df <- matrixTests::row_t_equalvar(Temp.UMI.Mat[,Group1], Temp.UMI.Mat[,Group2])
+      Temp.df <- Temp.df[,1:15]
     }
     else if (Method == "wilcoxon") {
       Temp.Res.df <- matrixTests::row_wilcoxon_twosample(Temp.UMI.Mat[,Group1], Temp.UMI.Mat[,Group2])
