@@ -2640,7 +2640,7 @@ PerformDiffExp <- function (PiccoloList, Group1, Group2, Transform = "log", Meth
       End.Point <- length(RelevantGenesSerNos)
     }
     Temp.UMI.Mat <- Relevant.Counts.Mat[,Start.Point:End.Point]
-    Temp.UMI.Mat <- ResidualSF(Temp.UMI.Mat, Transform = Transform, SF = PiccoloList$SizeFactors)
+    Temp.UMI.Mat <- ResidualSF(Temp.UMI.Mat, Transform = Transform, SF = PiccoloList$SizeFactors,verbose = F)
     if (Method == "t.test") {
       Temp.Res.df <- matrixTests::row_t_equalvar(Temp.UMI.Mat[,Group1], Temp.UMI.Mat[,Group2])
       Temp.Res.df <- Temp.Res.df[,1:15]
@@ -2704,17 +2704,24 @@ PerformDiffExp <- function (PiccoloList, Group1, Group2, Transform = "log", Meth
 #' pbmc3k <- PerformDiffExpClusterwise(PiccoloList = pbmc3k,
 #' Method = "wilcoxon", Out = T)
 #' }
-PerformDiffExpClusterwise <- function(PiccoloList,Transform = "log",Method = "t.test",Out = F)
+PerformDiffExpClusterwise <- function(PiccoloList,Transform = "log",Method = "t.test",Out = F,verbose = T)
 {
   ClusterLevels <- table(PiccoloList$ClusterLabels)
   Cluster.DE <- vector(mode = "list",length = length(ClusterLevels))
   for (i in 1:length(ClusterLevels))
   {
+    if (verbose == T){
+      message(paste0("Cluster ",i," vs Others..."))
+    }  
     CellSerNos <- 1:length(PiccoloList$Barcodes)
     Group1.Vec <- which(PiccoloList$ClusterLabels == paste0("Cluster ",i))
     Group2.Vec <- CellSerNos[!CellSerNos %in% Group1.Vec]
     PiccoloList1 <- PerformDiffExp(PiccoloList = PiccoloList, Group1 = Group1.Vec, Group2 = Group2.Vec, Transform = Transform, Method = Method, Out = F)
 
+    if (verbose == T){
+      message("Done.") 
+    }
+    
     Cluster.DE[[i]] <- PiccoloList1$DE.Results
     if (Out == T){
       FileName <- paste0("Cluster",i,"vsRest_DEResults", ".csv")
