@@ -1731,7 +1731,7 @@ ResidualSF <- function(X,Transform,SF,Lambda = NULL,verbose = T){
     #For log transform
     if (verbose == T){
       message("LogSF transforming counts...")
-    }  
+    }
 
 
     Seq.Nos <- seq(1,ncol(X),500)
@@ -2341,7 +2341,7 @@ LeidentSNE <- function (PiccoloList,Levels = NULL, Alpha = 0.7, Size = 1.4,BaseS
 #' LabelUMAP(PiccoloList = pbmc3k,
 #' Labels = CellLabels,
 #' Levels = c("b-cells","cd14 monocytes","dendritic","NK cells","naive cytotoxic"),
-#' Title = "PBMC3k)
+#' Title = "PBMC3k")
 #' }
 LabelUMAP <- function (PiccoloList, Labels, Levels = NULL, Alpha = 0.7, Size = 1.4,BaseSize = 28,Title = "Piccolo",LegendPosition = "right"){
   UMAP.Coord.df <- PiccoloList$UMAP
@@ -2650,7 +2650,7 @@ PerformDiffExp <- function (PiccoloList, Group1, Group2, Transform = "log", Meth
       Mean.x <- rowMeans(Temp.UMI.Mat[,Group1])
       Mean.y <- rowMeans(Temp.UMI.Mat[,Group2])
       Mean.Diff <- Mean.x - Mean.y
-      
+
       Temp.Res.df <- Temp.Res.df[,1:5]
       Temp.df <- data.frame(obs.x = Temp.Res.df$obs.x,obs.y = Temp.Res.df$obs.y, obs.tot = Temp.Res.df$obs.tot,mean.x = Mean.x, mean.y = Mean.y, mean.diff = Mean.Diff, statistic = Temp.Res.df$statistic, pvalue = Temp.Res.df$pvalue)
     }
@@ -2696,6 +2696,7 @@ PerformDiffExp <- function (PiccoloList, Group1, Group2, Transform = "log", Meth
 #' @param Transform A character variable. Should be the same as the one used during normalization. Else, the default of "log" will be used.
 #' @param Method A character variable. Specifies the method used for testing differences between the expression levels in the 2 groups. Currently, two tests are available: the default Student's t-test ("t.test"), and the Wilcoxon rank-sum test ("wilcoxon").
 #' @param Out A logical variable. Specifies whether to return an output files (.csv) with the differential expression results (if set to T) or not (set to F). Default is F.
+#' @param verbose A logical variable. Specifies whether messages generated while running the function should be displayed (default is T).
 #' @return An updated PiccoloList containing a data frame with the results of the differential expression analysis.
 #' @examples
 #' \dontrun{
@@ -2712,16 +2713,16 @@ PerformDiffExpClusterwise <- function(PiccoloList,Transform = "log",Method = "t.
   {
     if (verbose == T){
       message(paste0("Cluster ",i," vs Others..."))
-    }  
+    }
     CellSerNos <- 1:length(PiccoloList$Barcodes)
     Group1.Vec <- which(PiccoloList$ClusterLabels == paste0("Cluster ",i))
     Group2.Vec <- CellSerNos[!CellSerNos %in% Group1.Vec]
     PiccoloList1 <- PerformDiffExp(PiccoloList = PiccoloList, Group1 = Group1.Vec, Group2 = Group2.Vec, Transform = Transform, Method = Method, Out = F)
 
     if (verbose == T){
-      message("Done.") 
+      message("Done.")
     }
-    
+
     Cluster.DE[[i]] <- PiccoloList1$DE.Results
     if (Out == T){
       FileName <- paste0("Cluster",i,"vsRest_DEResults", ".csv")
@@ -2732,5 +2733,96 @@ PerformDiffExpClusterwise <- function(PiccoloList,Transform = "log",Method = "t.
   PiccoloList$DE.Results <- Cluster.DE
   return(PiccoloList)
 }
+
+#' @title  Get marker genes for each cluster
+#' @description  This function shortlists marker gene sets for each cluster.
+#' @export
+#' @param PiccoloList A list object. Piccolo list object obtained after performing clustering (Leiden or Louvain).
+#' @param MeanDiffSD A numeric variable. Specifies the minimum number of standard deviations that the difference of mean residuals between cluster cells and non-cluster cells should exhibit in order to be identified as a marker.
+#' @param pValcutoff A numeric variable. Specifies the minimum raw (uncorrected) p-value that a gene must have to be identified as differentially expressed between the cluster cells and the non-cluster cells. Default is NULL.
+#' @param FDRcutoff A numeric variable. Specifies the minimum FDR value that a gene must exhibit for it to be considered differentially expressed between the cluster cells and the non-cluster cells. Default is 0.005.
+#' @param MaxSharedClusters An integer variable. The maximum number of clusters that a given gene may be identified as differentially expressed in. Default is 2.
+#' @param Out A logical variable. Specifies whether to return an output file (.csv) with the lists of marker genes.
+#' @return An updated PiccoloList containing a list with the differential expression result tables containing the marker genes for each cluster.
+#' @examples
+#' \dontrun{
+#' pbmc3k <- GetClusterMarkers(PiccoloList = pbmc3k,
+#' Out = T)
+#' pbmc3k <- GetClusterMarkers(PiccoloList = pbmc3k,
+#' MaxSharedClusters = 1,Out = T)
+#' }
+GetClusterMarkers <- function(PiccoloList,MeanDiffSD = 2.5,pValcutoff = NULL,FDRcutoff = 0.005,MaxSharedClusters = 2,Out = F){
+
+  ClusterLevels <- table(PiccoloList$ClusterLabels)
+  ClusterDEGenes.Up <- vector(mode = "list",length = length(ClusterLevels))
+  ClusterGenes.Up <- vector(mode = "list",length = length(ClusterLevels))
+  for (i in 1:length(ClusterLevels))
+  {
+    ClusterI <- paste0("Cluster ",i)
+
+    DE.Results <- PiccoloList$DE.Results[[which(names(PiccoloList$DE.Results) == ClusterI)]]
+    colnames(DE.Results) <- c("Gene.ID",colnames(DE.Results)[-1])
+
+    if (is.null(pValcutoff) != T){
+      RelevantUpGenes <- which(DE.Results$mean.diff > mean(DE.Results$mean.diff) + MeanDiffSD*sd(DE.Results$mean.diff) & DE.Results$pvalue < pValcutoff)
+      Up.Genes <- DE.Results[RelevantUpGenes,]
+    } else {
+      RelevantUpGenes <- which(DE.Results$mean.diff >= mean(DE.Results$mean.diff) + MeanDiffSD*sd(DE.Results$mean.diff) & DE.Results$`p.adj(BH)` < FDRcutoff)
+      Up.Genes <- DE.Results[RelevantUpGenes,]
+    }
+    ClusterDEGenes.Up[[i]] <- Up.Genes
+    ClusterGenes.Up[[i]] <- Up.Genes$Gene.ID
+  }
+
+  Table.Cluster.Markers <- table(unlist(ClusterGenes.Up))
+
+  Temp.Ser.Genes.To.Be.Removed <- which(Table.Cluster.Markers > MaxSharedClusters)
+
+  if (length(Temp.Ser.Genes.To.Be.Removed) != 0){
+    Genes.To.Be.Removed <- names(Table.Cluster.Markers)[Temp.Ser.Genes.To.Be.Removed]
+  }
+
+  for (k in 1:length(ClusterDEGenes.Up)){
+    Temp.df <- ClusterDEGenes.Up[[k]]
+    if (length(Genes.To.Be.Removed) != 0){
+      Rows.To.Remove <- which(Temp.df$Gene.ID %in% Genes.To.Be.Removed)
+      Temp.df <- Temp.df[-Rows.To.Remove,]
+      if (nrow(Temp.df) == 0){
+        warning("No marker genes shortlisted for ","Cluster ",k," with the given thresholds.")
+      }
+      ClusterDEGenes.Up[[k]] <- Temp.df
+    }
+  }
+
+  names(ClusterDEGenes.Up) <- paste0("Cluster ",1:length(ClusterLevels))
+
+  PiccoloList$ClusterMarkers <- ClusterDEGenes.Up
+
+  if (Out == T){
+    if (is.null(pValcutoff)){
+      DirectoryName <- paste0("/ClusterMarkers","_MeanDiffSD",MeanDiffSD,"_FDR",FDRcutoff,"_","SharedClusters",MaxSharedClusters)
+    } else {
+      DirectoryName <- paste0("/ClusterMarkers","_MeanDiffSD",MeanDiffSD,"_pval",pValcutoff,"_","SharedClusters",MaxSharedClusters)
+    }
+
+    OrigDir <- getwd()
+
+    dir.create(paste0(getwd(),DirectoryName))
+    setwd(paste0(getwd(),DirectoryName))
+    for (i in 1:length(PiccoloList$ClusterMarkers)){
+      if (is.null(pValcutoff)){
+        FileName <- paste0("Cluster",i,".csv")
+      } else {
+        FileName <- paste0("Cluster",i,".csv")
+      }
+      write.csv(PiccoloList$ClusterMarkers[[i]]$Gene.ID,file = FileName,row.names = F)
+    }
+    setwd(OrigDir)
+  }
+
+  return(PiccoloList)
+}
+
+
 
 
