@@ -2634,8 +2634,8 @@ PerformDiffExp <- function(PiccoloList,Group1,Group2,Transform = "log",Method = 
       Temp.df <- Temp.df[,1:15]
   } else if (Method == "wilcoxon") {
     Temp.Res.df <- matrixTests::row_wilcoxon_twosample(PiccoloList$NormCounts[,Group1],PiccoloList$NormCounts[,Group2])
-    Mean.x <- rowMeans(Temp.UMI.Mat[,Group1])
-    Mean.y <- rowMeans(Temp.UMI.Mat[,Group2])
+    Mean.x <- rowMeans(PiccoloList$NormCounts[,Group1])
+    Mean.y <- rowMeans(PiccoloList$NormCounts[,Group2])
     Mean.Diff <- Mean.x - Mean.y
     Temp.Res.df <- Temp.Res.df[,1:5]
     Temp.df <- data.frame(obs.x = Temp.Res.df$obs.x, obs.y = Temp.Res.df$obs.y, obs.tot = Temp.Res.df$obs.tot, mean.x = Mean.x, mean.y = Mean.y, mean.diff = Mean.Diff, statistic = Temp.Res.df$statistic, pvalue = Temp.Res.df$pvalue)
