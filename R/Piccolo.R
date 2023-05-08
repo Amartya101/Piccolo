@@ -347,7 +347,26 @@ FilterCells <- function(PiccoloList,MinFeaturesPerCell = 50,MT.Perc = 100,RP.Per
   UMI.Mat <- PiccoloList$CountsOriginal
   Gene.IDs <- PiccoloList$GenesOriginal
   Barcodes <- PiccoloList$BarcodesOriginal
-  if (ncol(Gene.IDs) > 1) {
+  if (is.vector(Gene.IDs)){
+    List.For.GS.Col <- vector(mode = "list", length = length(Gene.IDs))
+    for (j in 1:length(Gene.IDs)) {
+      List.For.GS.Col[[j]] <- which(substr(toupper(Gene.IDs[j]),1,3) == "RPL" | substr(toupper(Gene.IDs[j]),1,3) == "RPS")
+    }
+    if (length(List.For.GS.Col) != 0) {
+      GS.Col <- 1
+    }
+    Duplicated.Features <- which(duplicated(Gene.IDs) == T)
+    if (length(Duplicated.Features) != 0) {
+      UMI.Mat <- Matrix::t(UMI.Mat)
+      UMI.Mat <- UMI.Mat[, -Duplicated.Features]
+      UMI.Mat <- Matrix::t(UMI.Mat)
+      Gene.IDs <- Gene.IDs[-Duplicated.Features]
+      rownames(UMI.Mat) <- Gene.IDs
+    }
+    else {
+      rownames(UMI.Mat) <- Gene.IDs
+    }
+  } else if (ncol(Gene.IDs) > 1) {
     List.For.GS.Col <- vector(mode = "list", length = ncol(Gene.IDs))
     for (j in 1:ncol(Gene.IDs)) {
       List.For.GS.Col[[j]] <- which(substr(toupper(Gene.IDs[,j]),1,3) == "RPL" | substr(toupper(Gene.IDs[,j]),1,3) == "RPS")
