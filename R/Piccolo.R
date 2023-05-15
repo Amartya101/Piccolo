@@ -317,7 +317,7 @@ CreatePiccoloList <- function(MTX, Genes, Barcodes,verbose = T)
   Barcodes <- read.delim(Barcodes, header = F, stringsAsFactors = F)
   Barcodes <- Barcodes$V1
 
-  PiccoloList <- list(CountsOriginal = UMI.Mat,GenesOriginal = Gene.IDs,BarcodesOriginal = Barcodes)
+  PiccoloList <- list(CountsOriginal = UMI.Mat,GenesOriginal = Gene.IDs,BarcodesOriginal = Barcodes,Counts = UMI.Mat,Genes = Gene.IDs,Barcodes = Barcodes)
   if (verbose == T){
     message("Successfully imported.")
   }
