@@ -2488,6 +2488,7 @@ GeneSetZScores <- function(PiccoloList,Genes){
 #' @param PiccoloList A list object. Piccolo list object obtained after applying the \link[Piccolo]{GeneSetZScores} function.
 #' @param Name A character variable. Specifies the name of the gene or gene set that you would like to display as the title.
 #' @param xLabel A logical variable. Specifies whether the x-axis label should be displayed (T) or not (F). Default is T.
+#' @param Size A numeric variable. Specifies the size of the dots in the UMAP plot. Default is 1.4.
 #' @param yLabel A logical variable. Specifies whether the y-axis label should be displayed (T) or not (F). Default is T.
 #' @param BaseSize A numeric variable. Specifies the base size of the text elements in the UMAP plot. Default is 28.
 #' @param UpperLowerSDThreshold A numeric variable. Specifies the number of standard deviations (SD) above or below which the z-scores should be capped to the value at the specified SD. Default is 2.5.
@@ -2499,7 +2500,7 @@ GeneSetZScores <- function(PiccoloList,Genes){
 #' UpperLowerSDThreshold = 3.5)
 #' }
 
-UMAPZScores <- function(PiccoloList,Name,xLabel = T,yLabel = T,BaseSize = 28,UpperLowerSDThreshold = 2.5){
+UMAPZScores <- function(PiccoloList,Name,xLabel = T,yLabel = T,Size = 1.4,BaseSize = 28,UpperLowerSDThreshold = 2.5){
 
   GeneSetZScores <- PiccoloList$GeneSetZScore
 
@@ -2528,7 +2529,7 @@ UMAPZScores <- function(PiccoloList,Name,xLabel = T,yLabel = T,BaseSize = 28,Upp
   }
 
   ggplot2::ggplot(data = df,ggplot2::aes(x = UMAP1,y = UMAP2)) +
-    ggplot2::geom_point(ggplot2::aes(UMAP1, UMAP2, color = `Z Score`)) + viridis::scale_color_viridis() +
+    ggplot2::geom_point(ggplot2::aes(UMAP1, UMAP2, color = `Z Score`),size = Size) + viridis::scale_color_viridis() +
     ggplot2::theme_bw(base_size = BaseSize,base_line_size = 0.4) +
     ggplot2::ggtitle(Name) +
     ggplot2::xlab(xlabeltext) +
@@ -2545,6 +2546,7 @@ UMAPZScores <- function(PiccoloList,Name,xLabel = T,yLabel = T,BaseSize = 28,Upp
 #' @param Name A character variable. Specifies the name of the gene or gene set that you would like to display as the title.
 #' @param xLabel A logical variable. Specifies whether the x-axis label should be displayed (T) or not (F). Default is T.
 #' @param yLabel A logical variable. Specifies whether the y-axis label should be displayed (T) or not (F). Default is T.
+#' @param Size A numeric variable. Specifies the size of the dots in the tSNE plot. Default is 1.4.
 #' @param BaseSize A numeric variable. Specifies the base size of the text elements in the tSNE plot. Default is 28.
 #' @param UpperLowerSDThreshold A numeric variable. Specifies the number of standard deviations (SD) above or below which the z-scores should be capped to the value at the specified SD.
 #' @return A tSNE plot with the cells colored according to the z-scores based on input gene sets specified in \link[Piccolo]{GeneSetZScores}.
@@ -2554,7 +2556,7 @@ UMAPZScores <- function(PiccoloList,Name,xLabel = T,yLabel = T,BaseSize = 28,Upp
 #' tSNEZScores(PiccoloList = pbmc3k,Name = "Cell Cycle",
 #' UpperLowerSDThreshold = 3.5)
 #' }
-tSNEZScores <- function(PiccoloList,Name,xLabel = T,yLabel = T,BaseSize = 28,UpperLowerSDThreshold = 2.5){
+tSNEZScores <- function(PiccoloList,Name,xLabel = T,yLabel = T,Size = 1.4,BaseSize = 28,UpperLowerSDThreshold = 2.5){
 
   GeneSetZScores <- PiccoloList$GeneSetZScore
 
@@ -2583,7 +2585,7 @@ tSNEZScores <- function(PiccoloList,Name,xLabel = T,yLabel = T,BaseSize = 28,Upp
   }
 
   ggplot2::ggplot(data = df,ggplot2::aes(x = tSNE1,y = tSNE2)) +
-    ggplot2::geom_point(ggplot2::aes(tSNE1, tSNE2, color = `Z Score`)) + viridis::scale_color_viridis() +
+    ggplot2::geom_point(ggplot2::aes(tSNE1, tSNE2, color = `Z Score`),size = Size) + viridis::scale_color_viridis() +
     ggplot2::theme_bw(base_size = BaseSize,base_line_size = 0.4) +
     ggplot2::ggtitle(Name) +
     ggplot2::xlab(xlabeltext) +
