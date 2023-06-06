@@ -1136,7 +1136,6 @@ SelectFeatures <- function(PiccoloList,NoOfHVG = NULL,Batch = NULL,MinPercNonZer
 #' pbmc3kSeurat <- SelectFeaturesForSeurat(Obj = pbmc3kSeurat,
 #' NoOfHVG = 3000, Out = T)
 #' }
-
 SelectFeaturesForSeurat <- function(Obj,NoOfHVG = NULL,MinPercNonZeroCells = 0.5,Reference = NULL,Out = F,verbose = T){
   
   if (is.null(Reference)){
