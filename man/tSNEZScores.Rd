@@ -9,6 +9,7 @@ tSNEZScores(
   Name,
   xLabel = T,
   yLabel = T,
+  Size = 1.4,
   BaseSize = 28,
   UpperLowerSDThreshold = 2.5
 )
@@ -21,6 +22,8 @@ tSNEZScores(
 \item{xLabel}{A logical variable. Specifies whether the x-axis label should be displayed (T) or not (F). Default is T.}
 
 \item{yLabel}{A logical variable. Specifies whether the y-axis label should be displayed (T) or not (F). Default is T.}
+
+\item{Size}{A numeric variable. Specifies the size of the dots in the tSNE plot. Default is 1.4.}
 
 \item{BaseSize}{A numeric variable. Specifies the base size of the text elements in the tSNE plot. Default is 28.}
 
