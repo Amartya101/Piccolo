@@ -495,6 +495,53 @@ FilterCells <- function(PiccoloList,MinFeaturesPerCell = 50,MT.Perc = 100,RP.Per
   return(PiccoloList)
 }
 
+#' @title  PrepareCountsForSeurat function
+#' @description  This function adds gene names and barcodes to the counts matrix in PiccoloList in order to use it as input for the CreateSeuratObject function in Seurat.
+#' @export
+#' @param PiccoloList A list object. This should be the list created using the \link[Piccolo]{CreatePiccoloList} function and optionally processed through the \link[Piccolo]{FilterCells}
+#' @return An updated PiccoloList object containing the counts matrix with the gene names and the barcodes.
+#' @examples
+#' \dontrun{
+#' pbmc3k <- PrepareCountsForSeurat(PiccoloList = pbmc3k)
+#' }
+PrepareCountsForSeurat <- function(PiccoloList){
+  if(is.null(dim(PiccoloList$Genes)) != T & length(PiccoloList$Genes$V2) != 0){
+    Genes <- PiccoloList$Genes$V2
+    Genes <- make.unique(Genes,sep = "//")
+  } else if (length(PiccoloList$Genes$V1) != 0){
+    Genes <- PiccoloList$Genes$V1
+    Genes <- make.unique(Genes,sep = "//")
+  } else {
+    Genes <- PiccoloList$Genes
+    Genes <- make.unique(Genes,sep = "//")
+  }
+  rownames(PiccoloList$Counts) <- Genes
+  colnames(PiccoloList$Counts) <- PiccoloList$Barcodes
+  
+  return(PiccoloList)
+}
+
+#' @title  AddMetadataForSeurat function
+#' @description  This function can be used to add cell metadata information in the Seurat object.
+#' @export
+#' @param Obj A Seurat object. This is created using the CreateSeuratObject in Seurat.
+#' @param FieldName A character input. Specifies the name of the field to be added to the metadata
+#' @param Values A numeric or character variable. Specifies the labels for the cells. The labels should be in the order as the cells in the data set.
+#' @return An updated Seurat object containing the metadata with the new field.
+#' @examples
+#' \dontrun{
+#' Field <- "CellTypes"
+#' CellLabels <- c(rep("B-cells",900),rep("T-cells",900),rep("Monocytes",900))
+#' pbmc3k <- AddMetadataForSeurat(PiccoloList = pbmc3k,FieldName = Field,Values = CellLabels)
+#' }
+AddMetadataForSeurat <- function(Obj,FieldName,Values){
+  MetaData.df <- Obj@meta.data
+  New.MetaData.df <- data.frame(MetaData.df,X1 = Values)
+  colnames(New.MetaData.df) <- c(colnames(MetaData.df),FieldName)
+  Obj@meta.data <- New.MetaData.df
+  return(Obj)
+}
+
 #' @title  SelectFeatures function
 #' @description  This function performs feature selection by identifying highly variable genes and stable genes.
 #' @export
@@ -1073,6 +1120,268 @@ SelectFeatures <- function(PiccoloList,NoOfHVG = NULL,Batch = NULL,MinPercNonZer
   return(PiccoloList)
 }
 
+#' @title  SelectFeaturesForSeurat function
+#' @description  This function performs feature selection by identifying highly variable genes and stable genes using a Seurat object.
+#' @export
+#' @param Obj A Seurat object. This should be the list created using the CreateSeuratObject function in Seurat
+#' @param NoOfHVG A numeric (integer) variable. The number of variable features to be shortlisted. If left NULL (default), will shortlist based on the threshold of ReferenceLevel.
+#' @param MinPercNonZeroCells A numeric variable. Specifies the minimum percentage of cells that must have non-zero counts for each gene in the data set. Default is 0.5 (\%).
+#' @param Reference A numeric variable (value should be greater than 0 but less than 1). Specifies the reference level against which features are identified as variable. Default is the 10th quantile for each bin (Reference = 0.1).
+#' @param Out A logical variable. Specifies whether to return output files (.csv) with the HVGs and the stable genes (if set to T), or not (if set to F). Default is FALSE.
+#' @param verbose A logical variable. Specifies whether messages generated while running the function should be displayed (default is T).
+#' @return An updated Seurat object containing the information of the shortlisted variable genes in the misc list entities of the assays present in the Seurat object.
+#' @examples
+#' \dontrun{
+#' pbmc3kSeurat <- SelectFeaturesForSeurat(Obj = pbmc3kSeurat)
+#' pbmc3kSeurat <- SelectFeaturesForSeurat(Obj = pbmc3kSeurat,
+#' NoOfHVG = 3000, Out = T)
+#' }
+
+SelectFeaturesForSeurat <- function(Obj,NoOfHVG = NULL,MinPercNonZeroCells = 0.5,Reference = NULL,Out = F,verbose = T){
+  
+  if (is.null(Reference)){
+    Reference <- 0.1
+  } else if (Reference > 0.5){
+    message("Reference should not be greater than 0.5. Resetting it to 0.1 (default)")
+    Reference <- 0.1
+  } else if (Reference <= 0){
+    message("Reference has to be greater than 0. Resetting it to 0.1 (default)")
+    Reference <- 0.1
+  }
+  
+  #Counts <- Obj@assays$RNA@counts
+  
+  UMI.Mat <- Matrix::t(Obj@assays$RNA@counts)
+  
+  Gene.IDs <- rownames(Obj@assays$RNA@counts)
+  
+  if(verbose == T){
+    message("Filtering features...")
+  }
+  
+  colVarsSPM <- function(X) {
+    stopifnot( methods::is(X, "CsparseMatrix"))
+    ans <- sapply(base::seq.int(X@Dim[2]),function(j) {
+      if(X@p[j+1] == X@p[j]) { return(0) } # all entries are 0: var is 0
+      mean <- base::sum(X@x[(X@p[j]+1):X@p[j+1]])/X@Dim[1]
+      sum((X@x[(X@p[j]+1):X@p[j+1] ] - mean)^2) +
+        mean^2 * (X@Dim[1] - (X@p[j+1] - X@p[j]))})/(X@Dim[1] - 1)
+    names(ans) <- X@Dimnames[[2]]
+    ans
+  }
+  
+  colOverdispQPCoef <- function(X,alternative = "greater"){
+    stopifnot( methods::is(X,"CsparseMatrix"))
+    ans <- sapply( base::seq.int(X@Dim[2]),function(j){
+      if(X@p[j+1] == X@p[j]){return(0)} # all entries are 0: var is 0
+      #mean <- exp(sum(log(X@x[(X@p[j]+1):X@p[j+1]]+1))/X@Dim[1]) - 1
+      est.mean <- sum(X@x[(X@p[j]+1):X@p[j+1]])/X@Dim[1]
+      
+      aux <- c(((X@x[(X@p[j]+1):X@p[j+1]] - est.mean)^2 -
+                  X@x[(X@p[j]+1):X@p[j+1]]),rep(est.mean^2,X@Dim[1] - length(X@x[(X@p[j]+1):X@p[j+1]])))/est.mean
+      
+      mean(aux) + 1})
+  }
+  
+  Var.Arith.Per.Feature <- colVarsSPM(UMI.Mat)
+  Mean.Arith.Per.Feature <- Matrix::colMeans(UMI.Mat)
+  
+  Irrelevant.Features <- which(Var.Arith.Per.Feature <= Mean.Arith.Per.Feature)
+  
+  No.of.Non.Zero.Per.Feature <- diff(UMI.Mat@p)
+  
+  Perc.Non.Zero.Per.Feature <- No.of.Non.Zero.Per.Feature/nrow(UMI.Mat) * 100
+  
+  Irrelevant.Features <- unique(c(Irrelevant.Features,which(Perc.Non.Zero.Per.Feature <= MinPercNonZeroCells)))
+  
+  if (length(Irrelevant.Features) != 0){
+    UMI.Mat <- UMI.Mat[,-Irrelevant.Features]
+    if (is.null(ncol(Gene.IDs)) != T){
+      Gene.IDs <- Gene.IDs[-Irrelevant.Features,]
+    } else {
+      Gene.IDs <- Gene.IDs[-Irrelevant.Features]
+    }
+    Mean.Arith.Per.Feature <- Mean.Arith.Per.Feature[-Irrelevant.Features]
+    Var.Arith.Per.Feature <- Var.Arith.Per.Feature[-Irrelevant.Features]
+    No.of.Non.Zero.Per.Feature <- No.of.Non.Zero.Per.Feature[-Irrelevant.Features]
+    Perc.Non.Zero.Per.Feature <- Perc.Non.Zero.Per.Feature[-Irrelevant.Features]
+  }
+  
+  if (verbose == T){
+    message("Estimating dispersion coefficients...")
+  }
+  
+  Alpha.QP <- colOverdispQPCoef(UMI.Mat)
+  
+  Irrelevant.Features <- which(Alpha.QP <= 1)
+  
+  if (length(Irrelevant.Features) != 0){
+    UMI.Mat <- UMI.Mat[,-Irrelevant.Features]
+    if (is.null(ncol(Gene.IDs)) != T){
+      Gene.IDs <- Gene.IDs[-Irrelevant.Features,]
+    } else {
+      Gene.IDs <- Gene.IDs[-Irrelevant.Features]
+    }
+    Mean.Arith.Per.Feature <- Mean.Arith.Per.Feature[-Irrelevant.Features]
+    Var.Arith.Per.Feature <- Var.Arith.Per.Feature[-Irrelevant.Features]
+    Perc.Non.Zero.Per.Feature <- Perc.Non.Zero.Per.Feature[-Irrelevant.Features]
+    No.of.Non.Zero.Per.Feature <- No.of.Non.Zero.Per.Feature[-Irrelevant.Features]
+    Alpha.QP <- Alpha.QP[-Irrelevant.Features]
+  }
+  
+  Alpha.NB.Est <- (Alpha.QP - 1)/Mean.Arith.Per.Feature
+  
+  #Binning based approach
+  
+  if (verbose == T){
+    message("Shortlisting variable features...")
+  }
+  
+  Mean.Quantiles <- quantile(Mean.Arith.Per.Feature,probs = seq(0.001,1,0.001))
+  Diff.AlphaQP.AlphaQPFit <- vector(mode = "numeric",length = length(Gene.IDs))
+  Features.In.Bins <- vector(mode = "list",length = length(Mean.Quantiles))
+  for (i in 1:length(Mean.Quantiles)){
+    if (i == 1){
+      Features.In.Bin <- which(Mean.Arith.Per.Feature <= Mean.Quantiles[i])
+      Features.In.Bins[[1]] <- Features.In.Bin
+    } else {
+      Features.In.Bin <- which(Mean.Arith.Per.Feature <= Mean.Quantiles[i])
+      if (length(intersect(Features.In.Bin,unlist(Features.In.Bins))) < length(Features.In.Bin)){
+        Features.In.Bin <- Features.In.Bin[!Features.In.Bin %in% unlist(Features.In.Bins)]
+        Features.In.Bins[[i]] <- Features.In.Bin
+      } else {
+        Features.In.Bins[[i]] <- Features.In.Bins[[(i-1)]]
+        Features.In.Bin <- Features.In.Bins[[(i-1)]]
+      }
+    }
+    Reference.AlphaQP.Bin <- quantile(Alpha.QP[Features.In.Bin],probs = c(Reference))
+    Diff.AlphaQP.AlphaQPFit[Features.In.Bin] <- Alpha.QP[Features.In.Bin] - Reference.AlphaQP.Bin
+  }
+  
+  Obj.List <- list(Genes = rownames(Obj@assays$RNA@counts))
+  
+  Obj.List$RelevantGenes <- Gene.IDs
+  
+  if(is.null(ncol(Obj.List$RelevantGenes)) == T){
+    RelevantGenesLength <- length(Obj.List$RelevantGenes)
+  } else {
+    RelevantGenesLength <- length(Obj.List$RelevantGenes[,1])
+  }
+  
+  RelevantGenes.Ser.Nos <- rep(0,RelevantGenesLength)
+  for (i in 1:length(RelevantGenes.Ser.Nos)){
+    if (is.null(ncol(Obj.List$Genes)) == T){
+      RelevantGenes.Ser.Nos[i] <- which(Obj.List$Genes == Obj.List$RelevantGenes[i])
+    } else {
+      RelevantGenes.Ser.Nos[i] <- which(Obj.List$Genes[,1] == Obj.List$RelevantGenes[,1][i])
+    }
+  }
+  
+  Obj.List$RelevantGenes.Ser.Nos <- RelevantGenes.Ser.Nos
+  
+  Obj.List$DiffAlpha <- Diff.AlphaQP.AlphaQPFit
+  
+  #Obj$VG.Ser.Nos <- Top.Features
+  
+  if (is.null(NoOfHVG)){
+    Default.Features <- which(Diff.AlphaQP.AlphaQPFit > 0)
+    Top.Features <- Default.Features[order(Diff.AlphaQP.AlphaQPFit[Default.Features],decreasing = T)]
+    NoOfHVG <- length(Top.Features)
+  } else if (is.numeric(NoOfHVG)){
+    Default.Features <- which(Diff.AlphaQP.AlphaQPFit > 0)
+    Top.Features <- Default.Features[order(Diff.AlphaQP.AlphaQPFit[Default.Features],decreasing = T)]
+  } else {
+    NoOfHVG <- RelevantGenesLength
+    Top.Features <- order(Diff.AlphaQP.AlphaQPFit,decreasing = T)
+  }
+  
+  if (NoOfHVG > length(Top.Features)){
+    if (verbose == T){
+      message("Number of HVGs shortlisted with given reference level is lesser than desired number of HVGs. Try lowering Referencelevel.")
+    }
+  } else {
+    Top.Features <- Top.Features[1:NoOfHVG]
+  }
+  
+  if (is.null(ncol(Gene.IDs)) != T){
+    Top.Gene.IDs <- Gene.IDs[Top.Features,]
+    Top.Genes <- data.frame(Top.Gene.IDs,Alpha.QP[Top.Features],Alpha.NB.Est[Top.Features],Diff.AlphaQP.AlphaQPFit[Top.Features])
+    colnames(Top.Genes) <- c(colnames(Top.Gene.IDs),"AlphaQP","AlphaNB","DiffAlpha")
+  } else {
+    Top.Gene.IDs <- Gene.IDs[Top.Features]
+    Top.Genes <- data.frame(Top.Gene.IDs,Alpha.QP[Top.Features],Alpha.NB.Est[Top.Features],Diff.AlphaQP.AlphaQPFit[Top.Features])
+    colnames(Top.Genes) <- c("V1","AlphaQP","AlphaNB","DiffAlpha")
+  }
+  
+  #Identify least variable features
+  Default.Features <- which(Diff.AlphaQP.AlphaQPFit < 0)
+  Bottom.Features <- Default.Features[order(Diff.AlphaQP.AlphaQPFit[Default.Features])]
+  
+  if (is.null(ncol(Gene.IDs)) != T){
+    Bottom.Gene.IDs <- Gene.IDs[Bottom.Features,]
+    Bottom.Genes <- data.frame(Bottom.Gene.IDs,Alpha.QP[Bottom.Features],Alpha.NB.Est[Bottom.Features],Diff.AlphaQP.AlphaQPFit[Bottom.Features])
+    colnames(Bottom.Genes) <- c(colnames(Bottom.Gene.IDs),"AlphaQP","AlphaNB","DiffAlpha")
+  } else {
+    Bottom.Gene.IDs <- Gene.IDs[Bottom.Features]
+    Bottom.Genes <- data.frame(Bottom.Gene.IDs,Alpha.QP[Bottom.Features],Alpha.NB.Est[Bottom.Features],Diff.AlphaQP.AlphaQPFit[Bottom.Features])
+    colnames(Bottom.Genes) <- c("V1","AlphaQP","AlphaNB","DiffAlpha")
+  }
+  
+  Obj.List$DispCoef <- data.frame(AlphaQP = Alpha.QP,AlphaNB = Alpha.NB.Est)
+  
+  Obj.List$HVG <- Top.Genes
+  
+  Top.Features.Ser.Nos <- rep(0,length(Obj.List$HVG$V1))
+  for (i in 1:length(Top.Features.Ser.Nos))
+  {
+    if (is.null(ncol(Obj.List$Genes)) == T){
+      Top.Features.Ser.Nos[i] <- which(Obj.List$Genes == Obj.List$HVG$V1[i])
+    } else {
+      Top.Features.Ser.Nos[i] <- which(Obj.List$Genes[,1] == Obj.List$HVG$V1[i])
+    }
+  }
+  
+  Obj.List$HVG.Ser.Nos <- Top.Features.Ser.Nos
+  
+  Obj.List$StableGenes <- Bottom.Genes
+  
+  Bottom.Features.Ser.Nos <- rep(0,length(Obj.List$StableGenes$V1))
+  for (i in 1:length(Bottom.Features.Ser.Nos))
+  {
+    if (is.null(ncol(Obj.List$Genes)) == T){
+      Bottom.Features.Ser.Nos[i] <- which(Obj.List$Genes == Obj.List$StableGenes$V1[i])
+    } else {
+      Bottom.Features.Ser.Nos[i] <- which(Obj.List$Genes[,1] == Obj.List$StableGenes$V1[i])
+    }
+  }
+  
+  Obj.List$Stable.Ser.Nos <- Bottom.Features.Ser.Nos
+  
+  Obj@assays$RNA@misc$PiccoloInfo <- Obj.List
+  
+  Obj@assays$SCT@misc$PiccoloInfo <- Obj.List
+  
+  Obj@assays$RNA@var.features <- Obj.List$HVG$V1
+  
+  Obj@assays$SCT@var.features <- Obj.List$HVG$V1
+  
+  #Obj@assays$RNA$var.features <- Obj.List$HVG$V1
+  
+  if (verbose == T){
+    message("Shortlisted highly variable genes (HVG) and stable genes.")
+  }
+  
+  if (Out == T){
+    write.csv(Obj.List$HVG, file = paste0("Top",dim(Obj.List$HVG)[1],"Features", ".csv"),row.names = F)
+    message("Successfully prepared .csv file containing list of highly variable features.")
+    write.csv(Obj.List$StableGenes, file = paste0("Bottom",dim(Obj.List$StableGenes)[1],"Features", ".csv"),row.names = F)
+    message("Successfully prepared .csv file containing list of stable features.")
+  }
+  
+  return(Obj)
+}
+
+
 #' @title  SelectStableFeaturesAllCells function
 #' @description  This function performs feature selection by identifying stable genes across all cells.
 #' @export
@@ -1577,6 +1886,182 @@ Normalize <- function (PiccoloList, Transform = "log",SizeFactors = NULL, verbos
     return(PiccoloList)
   }
 }
+
+#' @title  NormalizeForSeurat function
+#' @description  This function performs normalization for the counts of the genes shortlisted using the \link[Piccolo]{SelectFeaturesForSeurat} function.
+#' @export
+#' @param Obj A Seurat object. This should be the list created using the CreateSeuratObject function of Seurat.
+#' @param Transform A character variable. Specifies the variance stabilizing transformation that will be applied to the counts. The default is the log transform (Transform = "log"). Other options include the Sqrt transform (Transform = "sqrt") and the Box-Cox power law transform (Transform = "bc").
+#' @param SizeFactors A numeric variable. Can be used to specify size factors per cell obtained from another method. Should be specified in the same order as the cells listed in the barcodes file..
+#' @param verbose A logical variable. Specifies whether messages generated while running the function should be displayed (default is T).
+#' @param Out A logical variable. Specifies whether to return output file (.csv) with the z-scores (if set to T), or not (if set to F). Default is FALSE.
+#' @return An updated PiccoloList object containing the matrix with the residuals (z-scores) obtained from the counts matrix.
+#' @examples
+#' \dontrun{
+#' pbmc3kSeurat <- NormalizeForSeurat(Obj = pbmc3kSeurat)
+#' pbmc3kSeurat <- NormalizeForSeurat(Obj = pbmc3kSeurat, 
+#' Transform = "bc")
+#' }
+NormalizeForSeurat <- function (Obj, Transform = "log",SizeFactors = NULL, verbose = T, Out = F){
+  
+  UMI.Mat <- Matrix::t(Obj@assays$RNA@counts)
+  Gene.IDs <- rownames(Obj@assays$RNA@counts)
+  Barcodes <- colnames(Obj@assays$RNA@counts)
+  TransformType <- Transform
+  
+  PiccoloList <- Obj@assays$RNA@misc$PiccoloInfo
+  
+  SF.Per.Cell <- SizeFactors
+  
+  PiccoloList$SizeFactors <- SF.Per.Cell
+  
+  if (is.null(SizeFactors)){
+    #Use all stable features and filtered genes
+    Seq.Nos <- 1:dim(UMI.Mat)[2]
+    Temp.UMI.Mat <- UMI.Mat[,c(PiccoloList$Stable.Ser.Nos,Seq.Nos[!Seq.Nos %in% PiccoloList$FilteredGenes.Ser.Nos])]
+    Zero.Count.Features <- which(Matrix::colSums(Temp.UMI.Mat) == 0)
+    if (length(Zero.Count.Features) != 0){
+      Temp.UMI.Mat <- Temp.UMI.Mat[,-Zero.Count.Features]
+    }
+    
+    Total.UMI.Counts <- Matrix::rowSums(Temp.UMI.Mat)
+    
+    SF.Per.Cell <- Total.UMI.Counts/mean(Total.UMI.Counts)
+    
+    TempI <- 100
+    while (length(which(SF.Per.Cell == 0)) != 0){
+      Temp.UMI.Mat <- UMI.Mat[,c(PiccoloList$Stable.Ser.Nos[[i]],Seq.Nos[!Seq.Nos %in% PiccoloList$FilteredGenes.Ser.Nos],rev(PiccoloList$HVG.Ser.Nos)[1:TempI])]
+      Zero.Count.Features <- which(Matrix::colSums(UMI.Mat) == 0)
+      if (length(Zero.Count.Features) != 0){
+        Temp.UMI.Mat <- Temp.UMI.Mat[,-Zero.Count.Features]
+      }
+      
+      Total.UMI.Counts <- Matrix::rowSums(Temp.UMI.Mat)
+      
+      SF.Per.Cell <- Total.UMI.Counts/mean(Total.UMI.Counts)
+      
+      TempI <- TempI + 100
+    }
+    PiccoloList$SizeFactors <- SF.Per.Cell
+  }
+  
+  UMI.Mat <- UMI.Mat[,PiccoloList$HVG.Ser.Nos]
+  
+  Temp.SF.Mat <- UMI.Mat/SF.Per.Cell
+  
+  if (verbose == T){
+    message("Revising dispersion coefficients...")
+  }
+  
+  colOverdispQPCoef <- function(X,alternative = "greater"){
+    stopifnot( methods::is(X,"CsparseMatrix"))
+    ans <- sapply( base::seq.int(X@Dim[2]),function(j){
+      if(X@p[j+1] == X@p[j]){return(0)} # all entries are 0: var is 0
+      #mean <- exp(sum(log(X@x[(X@p[j]+1):X@p[j+1]]+1))/X@Dim[1]) - 1
+      est.mean <- sum(X@x[(X@p[j]+1):X@p[j+1]])/X@Dim[1]
+      
+      aux <- c(((X@x[(X@p[j]+1):X@p[j+1]] - est.mean)^2 -
+                  X@x[(X@p[j]+1):X@p[j+1]]),rep(est.mean^2,X@Dim[1] - length(X@x[(X@p[j]+1):X@p[j+1]])))/est.mean
+      
+      mean(aux) + 1})
+  }
+  
+  AlphaRevised <- colOverdispQPCoef(X = Temp.SF.Mat)
+  
+  #Find which features exhibit underdispersion
+  TempSerNos <- which(AlphaRevised <= 1)
+  if (length(TempSerNos) != 0){
+    UMI.Mat <- UMI.Mat[,-TempSerNos]
+    PiccoloList$HVG <- PiccoloList$HVG[-TempSerNos,]
+    PiccoloList$HVG.Ser.Nos <- PiccoloList$HVG.Ser.Nos[-TempSerNos]
+    AlphaRevised <- AlphaRevised[-TempSerNos]
+  }
+  
+  PiccoloList$RevisedAlpha <- AlphaRevised
+  
+  if (Transform == "bc" | Transform == "BC"){
+    #Box-Cox transform function for sparse CsparseMatrix
+    colBCLambda <- function(X,lower = -1, upper = 1, eps = 0.001){
+      stopifnot( methods::is(X,"CsparseMatrix"))
+      ans <- sapply( base::seq.int(X@Dim[2]),function(j){
+        if(X@p[j+1] == X@p[j]){return(0)} # all entries are 0: var is 0
+        n <- X@Dim[1]
+        yj_LL <- function(lambda){
+          if (abs(lambda) < eps){
+            x_t <- log(c(X@x[(X@p[j]+1):X@p[j+1]] + 1),rep(1,X@Dim[1] - length(X@x[(X@p[j]+1):X@p[j+1]])))
+          } else {
+            x_t <- (c((X@x[(X@p[j]+1):X@p[j+1]] + 1),rep(1,X@Dim[1] - length(X@x[(X@p[j]+1):X@p[j+1]])))^lambda - 1)/lambda
+          }
+          x_t_bar <- mean(x_t)
+          x_t_var <- var(x_t) * (n-1)/n
+          constant <- sum(sign(X@x[(X@p[j]+1):X@p[j+1]]) * log(abs(X@x[(X@p[j]+1):X@p[j+1]] ) + 1))
+          -0.5 * n * log(x_t_var) + (lambda - 1) * constant
+        }
+        results <- suppressWarnings(optimize(yj_LL, lower = lower, upper = upper, maximum = TRUE, tol = 1e-04))
+        results$maximum
+      })
+    }
+    
+    if (verbose == T){
+      message("Estimating lambdas for power transform...")
+    }
+    Lambdas <- colBCLambda(X = UMI.Mat)
+    PiccoloList$Lambda <- Lambdas
+    
+    Std.Mat <- ResidualSF(X = UMI.Mat,SF = SF.Per.Cell,Transform = TransformType,Lambda = Lambdas)
+    
+  } else {
+    
+    Std.Mat <- ResidualSF(X = UMI.Mat,SF = SF.Per.Cell,Transform = TransformType,Lambda = NULL)
+    
+  }
+  rownames(Std.Mat) <- PiccoloList$HVG$V1
+  colnames(Std.Mat) <- Barcodes
+  
+  if (Out == T) {
+    FileName <- paste0(Transform, "Residuals.csv")
+    data.table::fwrite(data.frame(Std.Mat), file = FileName,row.names = F,col.names = F, sep = ",")
+  }
+  
+  Obj@assays$SCT@scale.data <- Std.Mat
+  
+  Obj@assays$SCT@misc$PiccoloInfo <- PiccoloList
+  
+  #Get corrected counts matrix from Piccolo residuals and replace data object in SCT assay
+  UMI.Mat <- Matrix::t(Obj@assays$RNA@counts)
+
+  colVarsSPM <- function(X) {
+    stopifnot( methods::is(X, "CsparseMatrix"))
+    ans <- sapply(base::seq.int(X@Dim[2]),function(j) {
+      if(X@p[j+1] == X@p[j]) { return(0) } # all entries are 0: var is 0
+      mean <- base::sum(X@x[(X@p[j]+1):X@p[j+1]])/X@Dim[1]
+      sum((X@x[(X@p[j]+1):X@p[j+1] ] - mean)^2) +
+        mean^2 * (X@Dim[1] - (X@p[j+1] - X@p[j]))})/(X@Dim[1] - 1)
+    names(ans) <- X@Dimnames[[2]]
+    ans
+  }
+
+  GeneMeans <- Matrix::colMeans(UMI.Mat[,PiccoloList$HVG.Ser.Nos]/PiccoloList$SizeFactors)
+  GeneVars <- colVarsSPM(UMI.Mat[,PiccoloList$HVG.Ser.Nos]/PiccoloList$SizeFactors)
+
+  PiccoloList$GeneMeans <- GeneMeans
+  PiccoloList$GeneVars <- GeneVars
+
+  CorrectedCountsMat <- round(exp(Std.Mat*(sqrt(PiccoloList$GeneVars)/(PiccoloList$GeneMeans + 1)) + log(PiccoloList$GeneMeans + 1)) - 1)
+
+  CorrectedCountsMat[CorrectedCountsMat < 0] <- 0
+  rownames(CorrectedCountsMat) <- rownames(Std.Mat)
+  colnames(CorrectedCountsMat) <- colnames(Std.Mat)
+
+  #Obj@assays$SCT@data
+
+  Obj@assays$SCT@data <- as(CorrectedCountsMat,"CsparseMatrix")
+  Obj@assays$SCT@counts <- Obj@assays$RNA@counts[PiccoloList$HVG.Ser.Nos,]
+  Obj@assays$SCT@misc$PiccoloInfo <- PiccoloList
+
+  return(Obj)
+}
+
 
 ResidualSF <- function(X,Transform,SF,Lambda = NULL,verbose = T){
 
