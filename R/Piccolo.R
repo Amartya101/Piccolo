@@ -689,7 +689,7 @@ SelectFeatures <- function(PiccoloList,NoOfHVG = NULL,Batch = NULL,MinPercNonZer
 
     RelevantGenes.Ser.Nos <- rep(0,RelevantGenesLength)
     for (i in 1:length(RelevantGenes.Ser.Nos)){
-      if (is.null(ncol(PiccoloList$Genes)) == T){
+      if (is.null(ncol(PiccoloList$RelevantGenes)) == T){
         RelevantGenes.Ser.Nos[i] <- which(PiccoloList$Genes == PiccoloList$RelevantGenes[i])
       } else {
         RelevantGenes.Ser.Nos[i] <- which(PiccoloList$Genes[,1] == PiccoloList$RelevantGenes[,1][i])
@@ -908,7 +908,7 @@ SelectFeatures <- function(PiccoloList,NoOfHVG = NULL,Batch = NULL,MinPercNonZer
       RelevantGenes.Ser.Nos <- rep(0,RelevantGenesLength)
       for (k in 1:length(RelevantGenes.Ser.Nos))
       {
-        if (is.null(ncol(PiccoloList$Genes)) == T){
+        if (is.null(ncol(PiccoloList$RelevantGenes)) == T){
           RelevantGenes.Ser.Nos[k] <- which(PiccoloList$Genes == RelevantGenes.List[[i]][k])
         } else {
           Temp.df <- RelevantGenes.List[[i]]
