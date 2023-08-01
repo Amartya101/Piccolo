@@ -2046,9 +2046,11 @@ NormalizeForSeurat <- function (Obj, Transform = "log",SizeFactors = NULL, verbo
   PiccoloList$GeneMeans <- GeneMeans
   PiccoloList$GeneVars <- GeneVars
 
-  CorrectedCountsMat <- round(exp(Std.Mat*(sqrt(PiccoloList$GeneVars)/(PiccoloList$GeneMeans + 1)) + log(PiccoloList$GeneMeans + 1)) - 1)
+  CorrectedCountsMat <- Std.Mat * (sqrt(PiccoloList$GeneVars)/(PiccoloList$GeneMeans + 1)) + log(PiccoloList$GeneMeans + 1)
 
-  CorrectedCountsMat[CorrectedCountsMat < 0] <- 0
+  #CorrectedCountsMat <- round(exp(Std.Mat*(sqrt(PiccoloList$GeneVars)/(PiccoloList$GeneMeans + 1)) + log(PiccoloList$GeneMeans + 1)) - 1)
+
+  #CorrectedCountsMat[CorrectedCountsMat < 0] <- 0
   rownames(CorrectedCountsMat) <- rownames(Std.Mat)
   colnames(CorrectedCountsMat) <- colnames(Std.Mat)
 
