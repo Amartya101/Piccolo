@@ -1872,6 +1872,7 @@ Normalize <- function (PiccoloList, Transform = "log",SizeFactors = NULL, verbos
     PiccoloList$RevisedAlpha <- AlphaRevisedList
 
     PiccoloList$NormCounts.Batch <- Norm.Counts
+    PiccoloList$NormCounts <- do.call(cbind,PiccoloList$NormCounts.Batch)
     if (Out == T) {
       if (is.null(PiccoloList$BatchLabels) != T){
         Std.Mat <- matrix(0,ncol = length(PiccoloList$BatchLabels),nrow = nrow(PiccoloList$NormCounts.Batch[[1]]))
@@ -3116,7 +3117,12 @@ PerformDiffExp <- function(PiccoloList,Group1,Group2,Transform = "log",Method = 
   }
 
   Relevant.Counts.Mat <- Relevant.Counts.Mat[,FeaturesSerNos]
-  Scaled.Counts.Mat <- Relevant.Counts.Mat/PiccoloList$SizeFactors
+  if (is.list(PiccoloList$SizeFactors)){
+    Scaled.Counts.Mat <- Relevant.Counts.Mat/unlist(PiccoloList$SizeFactors)
+  } else {
+    Scaled.Counts.Mat <- Relevant.Counts.Mat/PiccoloList$SizeFactors
+  }  
+  
   Relevant.Counts.Mat.Group1 <- Matrix::t(Scaled.Counts.Mat)
   Relevant.Counts.Mat.Group1 <- Relevant.Counts.Mat.Group1[,Group1]
   Relevant.Counts.Mat.Group1 <- Matrix::t(Relevant.Counts.Mat.Group1)
