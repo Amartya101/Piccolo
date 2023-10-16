@@ -1872,16 +1872,17 @@ Normalize <- function (PiccoloList, Transform = "log",SizeFactors = NULL, verbos
     PiccoloList$RevisedAlpha <- AlphaRevisedList
 
     PiccoloList$NormCounts.Batch <- Norm.Counts
-    PiccoloList$NormCounts <- do.call(cbind,PiccoloList$NormCounts.Batch)
+    #NormCounts <- do.call(cbind, PiccoloList$NormCounts.Batch)
+    NormCounts <- matrix(0,ncol = length(PiccoloList$BatchLabels),nrow = nrow(PiccoloList$NormCounts.Batch[[1]]))
+    for (i in 1:length(PiccoloList$Batch.Cells.Ser.Nos)){
+        NormCounts[,as.numeric(PiccoloList$Batch.Cells.Ser.Nos[[i]])] <- PiccoloList$NormCounts.Batch[[i]]
+    }
+    PiccoloList$NormCounts <- NormCounts
     if (Out == T) {
       if (is.null(PiccoloList$BatchLabels) != T){
-        Std.Mat <- matrix(0,ncol = length(PiccoloList$BatchLabels),nrow = nrow(PiccoloList$NormCounts.Batch[[1]]))
-        for (i in 1:length(PiccoloList$Batch.Cells.Ser.Nos)){
-          Std.Mat[,as.numeric(PiccoloList$Batch.Cells.Ser.Nos[[i]])] <- PiccoloList$NormCounts.Batch[[i]]
-        }
+        FileName <- paste0("BatchesCombined_",Transform, "Residuals.csv")
+        data.table::fwrite(data.frame(PiccoloList$NormCounts), file = FileName,row.names = F,col.names = F,sep = ",")
       }
-      FileName <- paste0("BatchesCombined_",Transform, "Residuals.csv")
-      data.table::fwrite(data.frame(Std.Mat), file = FileName,row.names = F,col.names = F,sep = ",")
     }
     return(PiccoloList)
   }
