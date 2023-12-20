@@ -3251,6 +3251,11 @@ PerformDiffExpClusterwise <- function (PiccoloList,Transform = "log",Method = "t
 GetClusterMarkers <- function(PiccoloList,MeanDiffSD = 2.5,pValcutoff = NULL,FDRcutoff = 0.005,MaxSharedClusters = 2,Out = F){
 
   ClusterLevels <- table(PiccoloList$ClusterLabels)
+  Mean.Diff <- vector(mode = "list",length = length(PiccoloList$PiccoloCommunities$Communities))
+  for (i in 1:length(CommunityGenes.Up)){
+    Mean.Diff[[i]] <- PiccoloList$DE.Results.Communities[[i]]$mean.diff
+  }  
+  SD.Overall <- sd(unlist(Mean.Diff))
   ClusterDEGenes.Up <- vector(mode = "list",length = length(ClusterLevels))
   ClusterGenes.Up <- vector(mode = "list",length = length(ClusterLevels))
   for (i in 1:length(ClusterLevels))
@@ -3261,10 +3266,10 @@ GetClusterMarkers <- function(PiccoloList,MeanDiffSD = 2.5,pValcutoff = NULL,FDR
     colnames(DE.Results) <- c("Gene.ID",colnames(DE.Results)[-1])
 
     if (is.null(pValcutoff) != T){
-      RelevantUpGenes <- which(DE.Results$mean.diff > mean(DE.Results$mean.diff) + MeanDiffSD*sd(DE.Results$mean.diff) & DE.Results$pvalue < pValcutoff)
+      RelevantUpGenes <- which(DE.Results$mean.diff > mean(DE.Results$mean.diff) + MeanDiffSD*SD.Overall & DE.Results$pvalue < pValcutoff)
       Up.Genes <- DE.Results[RelevantUpGenes,]
     } else {
-      RelevantUpGenes <- which(DE.Results$mean.diff >= mean(DE.Results$mean.diff) + MeanDiffSD*sd(DE.Results$mean.diff) & DE.Results$`p.adj(BH)` < FDRcutoff)
+      RelevantUpGenes <- which(DE.Results$mean.diff >= mean(DE.Results$mean.diff) + MeanDiffSD*SD.Overall & DE.Results$`p.adj(BH)` < FDRcutoff)
       Up.Genes <- DE.Results[RelevantUpGenes,]
     }
     ClusterDEGenes.Up[[i]] <- Up.Genes
