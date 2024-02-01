@@ -2544,11 +2544,10 @@ LeidenClustering <- function(PiccoloList,Resolution = 1,ObjectiveFunction = "mod
 #' pbmc3k <- LeidenClustering(PiccoloList = pbmc3k,
 #' Resolution = 1.5)
 #' }
-LouvainUMAP <- function (PiccoloList,Levels = NULL, Alpha = 0.7, Size = 1.4,BaseSize = 28,Title = "Piccolo",LegendPosition = "bottom"){
-
+LouvainUMAP <- function (PiccoloList, Levels = NULL, Alpha = 0.7, Size = 1.4, 
+                         BaseSize = 28, Title = "Piccolo", LegendPosition = "bottom") {
   UMAP.Coord.df <- PiccoloList$UMAP
   Labels <- as.character(PiccoloList$Louvain$membership)
-
   if (length(Labels) != length(UMAP.Coord.df$CellID)) {
     stop("The length of the Labels vector provided does not match the number of cells in the UMAP.")
   }
@@ -2557,49 +2556,46 @@ LouvainUMAP <- function (PiccoloList,Levels = NULL, Alpha = 0.7, Size = 1.4,Base
   if (is.null(Levels) == F) {
     plot_data$Label <- factor(plot_data$Label, levels = Levels)
   }
-
-  GetClusterMedoidsForLabels <- function(PiccoloList,Clusters){
+  GetClusterMedoidsForLabels <- function(PiccoloList, Clusters) {
     ClusterLabels <- as.factor(Clusters)
     LevelsLabels <- levels(ClusterLabels)
     SerNos <- 1:length(levels(ClusterLabels))
-    ClusterLabelSerNos <- rep(0,length(ClusterLabels))
-    for (i in 1:length(SerNos))
-    {
+    ClusterLabelSerNos <- rep(0, length(ClusterLabels))
+    for (i in 1:length(SerNos)) {
       TempI <- which(ClusterLabels == LevelsLabels[i])
       ClusterLabelSerNos[TempI] <- SerNos[i]
     }
-
-    Medoids <- cluster::medoids(as.matrix(PiccoloList$UMAP[,-1]),clustering = ClusterLabelSerNos)
+    Medoids <- cluster::medoids(as.matrix(PiccoloList$UMAP[, -1]), clustering = ClusterLabelSerNos)
     names(Medoids) <- LevelsLabels
-
     return(Medoids)
   }
-
-  Medoids <- GetClusterMedoidsForLabels(PiccoloList = PiccoloList,Clusters = PiccoloList$Louvain$membership)
-
-  #Trajectory data frame
-  Trajectory.df <- data.frame(UMAP.Coord.df[Medoids,],names(Medoids))
-  colnames(Trajectory.df) <- c("CellID", "UMAP 1", "UMAP 2", "Index")
-
+  Medoids <- GetClusterMedoidsForLabels(PiccoloList = PiccoloList, 
+                                        Clusters = PiccoloList$Louvain$membership)
+  Trajectory.df <- data.frame(UMAP.Coord.df[Medoids, ], names(Medoids))
+  colnames(Trajectory.df) <- c("CellID", "UMAP 1", "UMAP 2", 
+                               "Index")
   gg_color_hue <- function(n) {
     hues = seq(15, 375, length = n + 1)
     hcl(h = hues, l = 65, c = 100)[1:n]
   }
-
-  if (length(table(Labels)) < 10){
-    cpal <- c("#4E79A7FF","#F28E2BFF","#B82E2EFF","#59A14FFF","#EDC948FF","#76B7B2FF","#B07AA1FF","#FF9DA7FF","#9C755FFF","#BAB0ACFF")
-  } else {
+  if (length(table(Labels)) < 10) {
+    cpal <- c("#4E79A7FF", "#F28E2BFF", "#B82E2EFF", "#59A14FFF", 
+              "#EDC948FF", "#76B7B2FF", "#B07AA1FF", "#FF9DA7FF", 
+              "#9C755FFF", "#BAB0ACFF")
+  }
+  else {
     cpal <- gg_color_hue(length(table(Labels)))
   }
-    p <- ggplot2::ggplot(plot_data, ggplot2::aes(`UMAP 1`, `UMAP 2`)) +
-    ggplot2::geom_point(ggplot2::aes(color = Label), alpha = Alpha,size = Size) +
-    ggrepel::geom_text_repel(data = Trajectory.df,ggplot2::aes(label = Index,fontface = "bold"),size = 7) +
-    ggplot2::scale_colour_manual(values=cpal) +
-    ggplot2::ggtitle(Title) +
-    ggplot2::theme(legend.position = LegendPosition)
-
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(`UMAP 1`, `UMAP 2`)) + 
+    ggplot2::geom_point(ggplot2::aes(color = Label), alpha = Alpha, 
+                        size = Size) + ggrepel::geom_text_repel(data = Trajectory.df, 
+                                                                ggplot2::aes(label = Index, fontface = "bold"), size = 7) + 
+    ggplot2::scale_colour_manual(values = cpal) + ggplot2::ggtitle(Title) + 
+    ggplot2::theme_bw(base_size = BaseSize) + ggplot2::theme(panel.grid.major = ggplot2::element_blank(), 
+                                                             panel.grid.minor = ggplot2::element_blank()) + ggplot2::theme(legend.position = LegendPosition)
   return(p)
 }
+
 
 #' @title  UMAP for Leiden Clusters
 #' @description  This function generates the UMAP plot with the cells labeled by the cluster labels identitied by Leiden clustering.
