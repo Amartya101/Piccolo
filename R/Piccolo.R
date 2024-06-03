@@ -314,6 +314,10 @@ CreatePiccoloList <- function(MTX, Genes, Barcodes,verbose = T)
   UMI.Mat <- Matrix::readMM(file = MTX)
   UMI.Mat <- methods::as(UMI.Mat, "CsparseMatrix")
   Gene.IDs <- read.delim(Genes, header = F, stringsAsFactors = F)
+  if (ncol(Gene.IDs) == 1){
+    colnames(Gene.IDs) <- c("V1")
+    Gene.IDs <- as.vector(Gene.IDs$V1)
+  }
   Barcodes <- read.delim(Barcodes, header = F, stringsAsFactors = F)
   Barcodes <- Barcodes$V1
 
