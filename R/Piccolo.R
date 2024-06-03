@@ -1501,19 +1501,19 @@ SelectStableFeaturesAllCells <- function (PiccoloList, Reference = NULL, MinPerc
     Diff.AlphaQP.AlphaQPFit[Features.In.Bin] <- Alpha.QP[Features.In.Bin] - Reference.AlphaQP.Bin
   }
   PiccoloList$RelevantGenes.AllCells <- Gene.IDs
-  if (is.null(ncol(PiccoloList$RelevantGenes)) == T) {
-    RelevantGenesLength <- length(PiccoloList$RelevantGenes)
+  if (is.null(ncol(PiccoloList$RelevantGenes.AllCells)) == T) {
+    RelevantGenesLength <- length(PiccoloList$RelevantGenes.AllCells)
   }
   else {
-    RelevantGenesLength <- length(PiccoloList$RelevantGenes[,1])
+    RelevantGenesLength <- length(PiccoloList$RelevantGenes.AllCells[,1])
   }
   RelevantGenes.Ser.Nos <- rep(0, RelevantGenesLength)
   for (i in 1:length(RelevantGenes.Ser.Nos)) {
     if (is.null(ncol(PiccoloList$Genes)) == T) {
-      RelevantGenes.Ser.Nos[i] <- which(PiccoloList$Genes == PiccoloList$RelevantGenes[i])
+      RelevantGenes.Ser.Nos[i] <- which(PiccoloList$Genes == PiccoloList$RelevantGenes.AllCells[i])
     }
     else {
-      RelevantGenes.Ser.Nos[i] <- which(PiccoloList$Genes[,1] == PiccoloList$RelevantGenes[, 1][i])
+      RelevantGenes.Ser.Nos[i] <- which(PiccoloList$Genes[,1] == PiccoloList$RelevantGenes.AllCells[, 1][i])
     }
   }
   PiccoloList$RelevantGenes.Ser.Nos.AllCells <- RelevantGenes.Ser.Nos
