@@ -24,6 +24,7 @@ Imports:
     RSpectra,
     dbscan,
     cluster,
+    uwot,
     umap,
     Rtsne,
     viridis
