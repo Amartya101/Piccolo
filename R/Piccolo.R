@@ -2374,28 +2374,38 @@ ScreePlot <- function(PiccoloList,MaxPC = NULL,cex = 1.25){
 #' @export
 #' @param PiccoloList A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} and the \link[Piccolo]{ComputePC} functions.
 #' @param NoOfPC An integer variable. Specifies the number of PCs to use for the UMAP. The default is NULL, which corresponds to the use of all the shortlisted principal components.
-#' @param Out A logical variable. Specifies whether to return an output file (.csv) with the UJMAP coordinates (if set to T), or not (if set to F). Default is F.
+#' @param Out A logical variable. Specifies whether to return an output file (.csv) with the UMAP coordinates (if set to T), or not (if set to F). Default is F.
 #' @return An updated PiccoloList with a data frame containing the UMAP coordinates of the cells.
 #' @examples
 #' \dontrun{
 #' pbmc3k <- UMAPcoords(PiccoloList = pbmc3k,
 #' Out = T)
 #' }
-UMAPcoords <- function (PiccoloList, NoOfPC = NULL, Out = F)
-{
-  if (is.null(NoOfPC)){
+UMAPcoords <- function (PiccoloList, NoOfPC = NULL, k = 15, Out = F) {
+  if (is.null(NoOfPC)) {
     NoOfPC <- dim(PiccoloList$PCA$x)[2]
   }
-
   PC.Mat <- as.matrix(PiccoloList$PCA$x[,1:NoOfPC])
   rownames(PC.Mat) <- PiccoloList$Barcodes
-  x <- umap::umap(PC.Mat)
-  UMAP.df <- data.frame(CellID = rownames(x$layout), UMAP1 = x$layout[,1], UMAP2 = x$layout[,2])
+  x <- uwot::umap(PC.Mat,n_neighbors = k+1,ret_nn = T,pca = NULL,verbose = T)
+  UMAP.df <- data.frame(CellID = rownames(x$embedding), UMAP1 = x$embedding[,1], UMAP2 = x$embedding[,2])
+  PiccoloList$UMAP <- UMAP.df
+  kNN <- list()
+  kNN$dist <- x$nn$euclidean$dist[,-1]
+  kNN$id <- x$nn$euclidean$idx[,-1]
+  kNN$k <- k
+  kNN$sort <- TRUE
+  PiccoloList$kNN <- kNN
+  
   if (Out == T) {
     FileName <- c("UMAPcoords.csv")
     data.table::fwrite(UMAP.df, file = FileName, row.names = F, sep = ",")
+    FileName <- c("UMAP_NearestNeighborsID.csv")
+    data.table::fwrite(PiccoloList$kNN$id, file = FileName, row.names = T, sep = ",")
+    FileName <- c("UMAP_NearestNeighborsDist.csv")
+    data.table::fwrite(PiccoloList$kNN$dist, file = FileName, row.names = T, sep = ",")
   }
-  PiccoloList$UMAP <- UMAP.df
+  
   return(PiccoloList)
 }
 
@@ -2404,26 +2414,34 @@ UMAPcoords <- function (PiccoloList, NoOfPC = NULL, Out = F)
 #' @export
 #' @param PiccoloList A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} and the \link[Piccolo]{ComputePC} functions.
 #' @param NoOfPC An integer variable. Specifies the number of PCs to use for the UMAP. The default is NULL, which corresponds to the use of all the shortlisted principal components.
-#' @param Out A logical variable. Specifies whether to return an output file (.csv) with the UJMAP coordinates (if set to T), or not (if set to F). Default is F.
+#' @param Out A logical variable. Specifies whether to return an output file (.csv) with the UMAP coordinates (if set to T), or not (if set to F). Default is F.
 #' @return A data frame containing the coordinates of the cells in the first 2 UMAP dimensions.
 #' @examples
 #' \dontrun{
 #' pbmc3k <- tSNEcoords(PiccoloList = pbmc3k,
 #' Out = T)
 #' }
-tSNEcoords <- function (PiccoloList, NoOfPC = NULL, Out = F)
-{
-  if (is.null(NoOfPC)){
+tSNEcoords <- function (PiccoloList,k = 15,NoOfPC = NULL, Out = F) {
+  if (is.null(NoOfPC)) {
     NoOfPC <- dim(PiccoloList$PCA$x)[2]
   }
   PC.Mat <- as.matrix(PiccoloList$PCA$x[,1:NoOfPC])
   rownames(PC.Mat) <- PiccoloList$Barcodes
-  x <- Rtsne::Rtsne(PC.Mat,pca = F)
+  x <- Rtsne::Rtsne(PC.Mat, pca = F, pca_scale = F)
   tSNE.df <- data.frame(CellID = rownames(PC.Mat), tSNE1 = x$Y[,1], tSNE2 = x$Y[,2])
   x$Y <- tSNE.df
+  PiccoloList$kNN <- dbscan::kNN(x = PiccoloList$PCA$x, k = k, 
+                                 query = NULL, sort = T, search = "kdtree", bucketSize = 10, 
+                                 splitRule = "suggest", approx = 0)
+  rownames(PiccoloList$kNN$id) <- PiccoloList$Barcodes
+  rownames(PiccoloList$kNN$dist) <- PiccoloList$Barcodes
   if (Out == T) {
     FileName <- c("tSNEcoords.csv")
     data.table::fwrite(tSNE.df, file = FileName, row.names = F, sep = ",")
+    FileName <- c("tSNE_NearestNeighborsID.csv")
+    data.table::fwrite(PiccoloList$kNN$id, file = FileName, row.names = T, sep = ",")
+    FileName <- c("tSNE_NearestNeighborsDist.csv")
+    data.table::fwrite(PiccoloList$kNN$dist, file = FileName, row.names = T, sep = ",")
   }
   PiccoloList$tSNE <- x
   return(PiccoloList)
