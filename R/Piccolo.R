@@ -2374,6 +2374,7 @@ ScreePlot <- function(PiccoloList,MaxPC = NULL,cex = 1.25){
 #' @export
 #' @param PiccoloList A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} and the \link[Piccolo]{ComputePC} functions.
 #' @param NoOfPC An integer variable. Specifies the number of PCs to use for the UMAP. The default is NULL, which corresponds to the use of all the shortlisted principal components.
+#' @param k An integer variable. Specifies the number of nearest neighbors. The default is 10.
 #' @param Out A logical variable. Specifies whether to return an output file (.csv) with the UMAP coordinates (if set to T), or not (if set to F). Default is F.
 #' @return An updated PiccoloList with a data frame containing the UMAP coordinates of the cells.
 #' @examples
@@ -2381,7 +2382,7 @@ ScreePlot <- function(PiccoloList,MaxPC = NULL,cex = 1.25){
 #' pbmc3k <- UMAPcoords(PiccoloList = pbmc3k,
 #' Out = T)
 #' }
-UMAPcoords <- function (PiccoloList, NoOfPC = NULL, k = 15, Out = F) {
+UMAPcoords <- function (PiccoloList, NoOfPC = NULL, k = 10, Out = F) {
   if (is.null(NoOfPC)) {
     NoOfPC <- dim(PiccoloList$PCA$x)[2]
   }
@@ -2414,6 +2415,7 @@ UMAPcoords <- function (PiccoloList, NoOfPC = NULL, k = 15, Out = F) {
 #' @export
 #' @param PiccoloList A list object. Piccolo list object obtained after applying the \link[Piccolo]{Normalize} and the \link[Piccolo]{ComputePC} functions.
 #' @param NoOfPC An integer variable. Specifies the number of PCs to use for the UMAP. The default is NULL, which corresponds to the use of all the shortlisted principal components.
+#' @param k An integer variable. Specifies the number of nearest neighbors. The default is 10.
 #' @param Out A logical variable. Specifies whether to return an output file (.csv) with the UMAP coordinates (if set to T), or not (if set to F). Default is F.
 #' @return A data frame containing the coordinates of the cells in the first 2 UMAP dimensions.
 #' @examples
@@ -2421,7 +2423,7 @@ UMAPcoords <- function (PiccoloList, NoOfPC = NULL, k = 15, Out = F) {
 #' pbmc3k <- tSNEcoords(PiccoloList = pbmc3k,
 #' Out = T)
 #' }
-tSNEcoords <- function (PiccoloList,k = 15,NoOfPC = NULL, Out = F) {
+tSNEcoords <- function (PiccoloList,k = 10,NoOfPC = NULL, Out = F) {
   if (is.null(NoOfPC)) {
     NoOfPC <- dim(PiccoloList$PCA$x)[2]
   }
@@ -2972,6 +2974,7 @@ GeneSetZScores <- function(PiccoloList,Genes){
 #' @param yLabel A logical variable. Specifies whether the y-axis label should be displayed (T) or not (F). Default is T.
 #' @param BaseSize A numeric variable. Specifies the base size of the text elements in the UMAP plot. Default is 28.
 #' @param UpperLowerSDThreshold A numeric variable. Specifies the number of standard deviations (SD) above or below which the z-scores should be capped to the value at the specified SD. Default is 2.5.
+#' @param col_pal A character variable or vector. Color palette for z-scores. The default is Shuksan, another option is "viridis". Users can themselves also specify a vector containing a gradient of colors.
 #' @return A UMAP plot with the cells colored according to the z-scores based on input gene sets specified in \link[Piccolo]{GeneSetZScores}.
 #' @examples
 #' \dontrun{
@@ -2980,43 +2983,68 @@ GeneSetZScores <- function(PiccoloList,Genes){
 #' UpperLowerSDThreshold = 3.5)
 #' }
 
-UMAPZScores <- function(PiccoloList,Name,xLabel = T,yLabel = T,Size = 1.4,BaseSize = 28,UpperLowerSDThreshold = 2.5){
-
+UMAPZScores <- function (PiccoloList, Name, xLabel = T, yLabel = T, Size = 1.4, 
+                         BaseSize = 28, UpperLowerSDThreshold = 2.5,col_pal = NULL) {
   GeneSetZScores <- PiccoloList$GeneSetZScore
-
-  Outliers.High <- which(GeneSetZScores > mean(GeneSetZScores) + UpperLowerSDThreshold*sd(GeneSetZScores))
-  if (length(Outliers.High) != 0){
-    GeneSetZScores[Outliers.High] <- mean(GeneSetZScores) + UpperLowerSDThreshold*sd(GeneSetZScores)
+  Outliers.High <- which(GeneSetZScores > mean(GeneSetZScores) + UpperLowerSDThreshold * sd(GeneSetZScores))
+  if (length(Outliers.High) != 0) {
+    GeneSetZScores[Outliers.High] <- mean(GeneSetZScores) + UpperLowerSDThreshold * sd(GeneSetZScores)
   }
-  Outliers.Low <- which(GeneSetZScores < mean(GeneSetZScores) - UpperLowerSDThreshold*sd(GeneSetZScores))
-  if (length(Outliers.Low) != 0){
-    GeneSetZScores[Outliers.Low] <- mean(GeneSetZScores) - UpperLowerSDThreshold*sd(GeneSetZScores)
+  Outliers.Low <- which(GeneSetZScores < mean(GeneSetZScores) - UpperLowerSDThreshold * sd(GeneSetZScores))
+  if (length(Outliers.Low) != 0) {
+    GeneSetZScores[Outliers.Low] <- mean(GeneSetZScores) - 
+      UpperLowerSDThreshold * sd(GeneSetZScores)
   }
-
-  df <- data.frame(PiccoloList$UMAP[,2:3],GeneSetZScores)
-  colnames(df) <- c("UMAP1","UMAP2","Z Score")
-
-  if (xLabel == T){
+  df <- data.frame(PiccoloList$UMAP[,2:3], GeneSetZScores)
+  colnames(df) <- c("UMAP1", "UMAP2", "Z Score")
+  if (xLabel == T) {
     xlabeltext <- "UMAP 1"
-  } else {
+  }
+  else {
     xlabeltext <- ""
   }
-
-  if (yLabel == T){
+  if (yLabel == T) {
     ylabeltext <- "UMAP 2"
-  } else {
+  }
+  else {
     ylabeltext <- ""
   }
-
-  ggplot2::ggplot(data = df,ggplot2::aes(x = UMAP1,y = UMAP2)) +
-    ggplot2::geom_point(ggplot2::aes(UMAP1, UMAP2, color = `Z Score`),size = Size) + viridis::scale_color_viridis() +
-    ggplot2::theme_bw(base_size = BaseSize,base_line_size = 0.4) +
-    ggplot2::ggtitle(Name) +
-    ggplot2::xlab(xlabeltext) +
-    ggplot2::ylab(ylabeltext) +
-    #ggplot2::coord_cartesian(xlim=xLim,ylim=yLim) +
-    #ggplot2::theme(legend.position="none") +
-    ggplot2::theme(axis.text.x=ggplot2::element_blank(),axis.ticks.x=ggplot2::element_blank(),axis.text.y=ggplot2::element_blank(),axis.ticks.y=ggplot2::element_blank())
+  
+  if (is.null(col_pal)){
+    ggplot2::ggplot(data = df, ggplot2::aes(x = UMAP1, y = UMAP2)) + 
+      ggplot2::geom_point(ggplot2::aes(UMAP1, UMAP2, color = `Z Score`), 
+                          size = Size) + 
+      ggplot2::scale_color_gradientn(colors = rev(c("grey28", "#74677EFF", "#AC8EABFF", "#D7B1C5FF", "#EBBDC8FF", "#F2CEC7FF","#F8E3D1FF","#FEFBE9FF"))) + #"#33271EFF"
+      
+      ggplot2::theme_bw(base_size = BaseSize, base_line_size = 0.4) + 
+      ggplot2::ggtitle(Name) + ggplot2::xlab(xlabeltext) + 
+      ggplot2::ylab(ylabeltext) + 
+      ggplot2::theme(axis.text.x = ggplot2::element_blank(), axis.ticks.x = ggplot2::element_blank(), axis.text.y = ggplot2::element_blank(), 
+                     axis.ticks.y = ggplot2::element_blank())
+  } else if (col_pal == "viridis"){
+      ggplot2::ggplot(data = df, ggplot2::aes(x = UMAP1, y = UMAP2)) + 
+        ggplot2::geom_point(ggplot2::aes(UMAP1, UMAP2, color = `Z Score`), 
+                            size = Size) + 
+        viridis::scale_color_viridis() + 
+        ggplot2::theme_bw(base_size = BaseSize, base_line_size = 0.4) + 
+        ggplot2::ggtitle(Name) + ggplot2::xlab(xlabeltext) + 
+        ggplot2::ylab(ylabeltext) + 
+        ggplot2::theme(axis.text.x = ggplot2::element_blank(), axis.ticks.x = ggplot2::element_blank(), axis.text.y = ggplot2::element_blank(), 
+                       axis.ticks.y = ggplot2::element_blank())
+      
+  } else {
+      ggplot2::ggplot(data = df, ggplot2::aes(x = UMAP1, y = UMAP2)) + 
+        ggplot2::geom_point(ggplot2::aes(UMAP1, UMAP2, color = `Z Score`), 
+                            size = Size) + 
+        ggplot2::scale_color_gradientn(colors = col_pal) + 
+        
+        ggplot2::theme_bw(base_size = BaseSize, base_line_size = 0.4) + 
+        ggplot2::ggtitle(Name) + ggplot2::xlab(xlabeltext) + 
+        ggplot2::ylab(ylabeltext) + 
+        ggplot2::theme(axis.text.x = ggplot2::element_blank(), axis.ticks.x = ggplot2::element_blank(), axis.text.y = ggplot2::element_blank(), 
+                       axis.ticks.y = ggplot2::element_blank())
+  }
+    
 }
 
 #' @title  tSNE plot with z-scores for gene sets
@@ -3029,6 +3057,7 @@ UMAPZScores <- function(PiccoloList,Name,xLabel = T,yLabel = T,Size = 1.4,BaseSi
 #' @param Size A numeric variable. Specifies the size of the dots in the tSNE plot. Default is 1.4.
 #' @param BaseSize A numeric variable. Specifies the base size of the text elements in the tSNE plot. Default is 28.
 #' @param UpperLowerSDThreshold A numeric variable. Specifies the number of standard deviations (SD) above or below which the z-scores should be capped to the value at the specified SD.
+#' @param col_pal A character variable or vector. Color palette for z-scores. The default is Shuksan, another option is "viridis". Users can themselves also specify a vector containing a gradient of colors.
 #' @return A tSNE plot with the cells colored according to the z-scores based on input gene sets specified in \link[Piccolo]{GeneSetZScores}.
 #' @examples
 #' \dontrun{
@@ -3036,44 +3065,70 @@ UMAPZScores <- function(PiccoloList,Name,xLabel = T,yLabel = T,Size = 1.4,BaseSi
 #' tSNEZScores(PiccoloList = pbmc3k,Name = "Cell Cycle",
 #' UpperLowerSDThreshold = 3.5)
 #' }
-tSNEZScores <- function(PiccoloList,Name,xLabel = T,yLabel = T,Size = 1.4,BaseSize = 28,UpperLowerSDThreshold = 2.5){
-
+tSNEZScores <- function (PiccoloList, Name, xLabel = T, yLabel = T, Size = 1.4, 
+                         BaseSize = 28, UpperLowerSDThreshold = 2.5) {
   GeneSetZScores <- PiccoloList$GeneSetZScore
-
-  Outliers.High <- which(GeneSetZScores > mean(GeneSetZScores) + UpperLowerSDThreshold*sd(GeneSetZScores))
-  if (length(Outliers.High) != 0){
-    GeneSetZScores[Outliers.High] <- mean(GeneSetZScores) + UpperLowerSDThreshold*sd(GeneSetZScores)
+  Outliers.High <- which(GeneSetZScores > mean(GeneSetZScores) + 
+                           UpperLowerSDThreshold * sd(GeneSetZScores))
+  if (length(Outliers.High) != 0) {
+    GeneSetZScores[Outliers.High] <- mean(GeneSetZScores) + 
+      UpperLowerSDThreshold * sd(GeneSetZScores)
   }
-  Outliers.Low <- which(GeneSetZScores < mean(GeneSetZScores) - UpperLowerSDThreshold*sd(GeneSetZScores))
-  if (length(Outliers.Low) != 0){
-    GeneSetZScores[Outliers.Low] <- mean(GeneSetZScores) - UpperLowerSDThreshold*sd(GeneSetZScores)
+  Outliers.Low <- which(GeneSetZScores < mean(GeneSetZScores) - 
+                          UpperLowerSDThreshold * sd(GeneSetZScores))
+  if (length(Outliers.Low) != 0) {
+    GeneSetZScores[Outliers.Low] <- mean(GeneSetZScores) - 
+      UpperLowerSDThreshold * sd(GeneSetZScores)
   }
-
-  df <- data.frame(PiccoloList$tSNE$Y[,2:3],GeneSetZScores)
-  colnames(df) <- c("tSNE1","tSNE2","Z Score")
-
-  if (xLabel == T){
+  df <- data.frame(PiccoloList$tSNE$Y[, 2:3], GeneSetZScores)
+  colnames(df) <- c("tSNE1", "tSNE2", "Z Score")
+  if (xLabel == T) {
     xlabeltext <- "tSNE 1"
-  } else {
+  }
+  else {
     xlabeltext <- ""
   }
-
-  if (yLabel == T){
+  if (yLabel == T) {
     ylabeltext <- "tSNE 2"
-  } else {
+  }
+  else {
     ylabeltext <- ""
   }
-
-  ggplot2::ggplot(data = df,ggplot2::aes(x = tSNE1,y = tSNE2)) +
-    ggplot2::geom_point(ggplot2::aes(tSNE1, tSNE2, color = `Z Score`),size = Size) + viridis::scale_color_viridis() +
-    ggplot2::theme_bw(base_size = BaseSize,base_line_size = 0.4) +
-    ggplot2::ggtitle(Name) +
-    ggplot2::xlab(xlabeltext) +
-    ggplot2::ylab(ylabeltext) +
-    #ggplot2::coord_cartesian(xlim=xLim,ylim=yLim) +
-    #ggplot2::theme(legend.position="none") +
-    ggplot2::theme(axis.text.x=ggplot2::element_blank(),axis.ticks.x=ggplot2::element_blank(),axis.text.y=ggplot2::element_blank(),axis.ticks.y=ggplot2::element_blank())
+  if (is.null(col_pal)){
+    ggplot2::ggplot(data = df, ggplot2::aes(x = UMAP1, y = UMAP2)) + 
+      ggplot2::geom_point(ggplot2::aes(UMAP1, UMAP2, color = `Z Score`), size = Size) + 
+      ggplot2::scale_color_gradientn(colors = rev(c("grey28", "#74677EFF", "#AC8EABFF", "#D7B1C5FF", "#EBBDC8FF", "#F2CEC7FF","#F8E3D1FF","#FEFBE9FF"))) +
+      
+      ggplot2::theme_bw(base_size = BaseSize, base_line_size = 0.4) + 
+      ggplot2::ggtitle(Name) + ggplot2::xlab(xlabeltext) + 
+      ggplot2::ylab(ylabeltext) + 
+      ggplot2::theme(axis.text.x = ggplot2::element_blank(), axis.ticks.x = ggplot2::element_blank(), axis.text.y = ggplot2::element_blank(), 
+                     axis.ticks.y = ggplot2::element_blank())
+    } else if (col_pal == "viridis"){
+      ggplot2::ggplot(data = df, ggplot2::aes(x = UMAP1, y = UMAP2)) + 
+        ggplot2::geom_point(ggplot2::aes(UMAP1, UMAP2, color = `Z Score`), 
+                            size = Size) + 
+        viridis::scale_color_viridis() + 
+        ggplot2::theme_bw(base_size = BaseSize, base_line_size = 0.4) + 
+        ggplot2::ggtitle(Name) + ggplot2::xlab(xlabeltext) + 
+        ggplot2::ylab(ylabeltext) + 
+        ggplot2::theme(axis.text.x = ggplot2::element_blank(), axis.ticks.x = ggplot2::element_blank(), axis.text.y = ggplot2::element_blank(), 
+                       axis.ticks.y = ggplot2::element_blank())
+      
+    } else {
+      ggplot2::ggplot(data = df, ggplot2::aes(x = UMAP1, y = UMAP2)) + 
+        ggplot2::geom_point(ggplot2::aes(UMAP1, UMAP2, color = `Z Score`), 
+                            size = Size) + 
+        ggplot2::scale_color_gradientn(colors = col_pal) + 
+        
+        ggplot2::theme_bw(base_size = BaseSize, base_line_size = 0.4) + 
+        ggplot2::ggtitle(Name) + ggplot2::xlab(xlabeltext) + 
+        ggplot2::ylab(ylabeltext) + 
+        ggplot2::theme(axis.text.x = ggplot2::element_blank(), axis.ticks.x = ggplot2::element_blank(), axis.text.y = ggplot2::element_blank(), 
+                       axis.ticks.y = ggplot2::element_blank())
+    }
 }
+
 
 #' @title  Identify differentially expressed genes between 2 groups of cells
 #' @description  This function performs differential expression analysis between 2 groups of cells provided by the user.
