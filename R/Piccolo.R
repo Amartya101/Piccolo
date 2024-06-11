@@ -3066,7 +3066,7 @@ UMAPZScores <- function (PiccoloList, Name, xLabel = T, yLabel = T, Size = 1.4,
 #' UpperLowerSDThreshold = 3.5)
 #' }
 tSNEZScores <- function (PiccoloList, Name, xLabel = T, yLabel = T, Size = 1.4, 
-                         BaseSize = 28, UpperLowerSDThreshold = 2.5) {
+                         BaseSize = 28, UpperLowerSDThreshold = 2.5,col_pal = NULL) {
   GeneSetZScores <- PiccoloList$GeneSetZScore
   Outliers.High <- which(GeneSetZScores > mean(GeneSetZScores) + 
                            UpperLowerSDThreshold * sd(GeneSetZScores))
