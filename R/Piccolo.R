@@ -3095,8 +3095,8 @@ tSNEZScores <- function (PiccoloList, Name, xLabel = T, yLabel = T, Size = 1.4,
     ylabeltext <- ""
   }
   if (is.null(col_pal)){
-    ggplot2::ggplot(data = df, ggplot2::aes(x = UMAP1, y = UMAP2)) + 
-      ggplot2::geom_point(ggplot2::aes(UMAP1, UMAP2, color = `Z Score`), size = Size) + 
+    ggplot2::ggplot(data = df, ggplot2::aes(x = tSNE1, y = tSNE2)) + 
+      ggplot2::geom_point(ggplot2::aes(tSNE1, tSNE2, color = `Z Score`), size = Size) + 
       ggplot2::scale_color_gradientn(colors = rev(c("grey28", "#74677EFF", "#AC8EABFF", "#D7B1C5FF", "#EBBDC8FF", "#F2CEC7FF","#F8E3D1FF","#FEFBE9FF"))) +
       
       ggplot2::theme_bw(base_size = BaseSize, base_line_size = 0.4) + 
@@ -3105,8 +3105,8 @@ tSNEZScores <- function (PiccoloList, Name, xLabel = T, yLabel = T, Size = 1.4,
       ggplot2::theme(axis.text.x = ggplot2::element_blank(), axis.ticks.x = ggplot2::element_blank(), axis.text.y = ggplot2::element_blank(), 
                      axis.ticks.y = ggplot2::element_blank())
     } else if (col_pal == "viridis"){
-      ggplot2::ggplot(data = df, ggplot2::aes(x = UMAP1, y = UMAP2)) + 
-        ggplot2::geom_point(ggplot2::aes(UMAP1, UMAP2, color = `Z Score`), 
+      ggplot2::ggplot(data = df, ggplot2::aes(x = tSNE1, y = tSNE2)) + 
+        ggplot2::geom_point(ggplot2::aes(tSNE1, tSNE2, color = `Z Score`), 
                             size = Size) + 
         viridis::scale_color_viridis() + 
         ggplot2::theme_bw(base_size = BaseSize, base_line_size = 0.4) + 
@@ -3116,8 +3116,8 @@ tSNEZScores <- function (PiccoloList, Name, xLabel = T, yLabel = T, Size = 1.4,
                        axis.ticks.y = ggplot2::element_blank())
       
     } else {
-      ggplot2::ggplot(data = df, ggplot2::aes(x = UMAP1, y = UMAP2)) + 
-        ggplot2::geom_point(ggplot2::aes(UMAP1, UMAP2, color = `Z Score`), 
+      ggplot2::ggplot(data = df, ggplot2::aes(x = tSNE1, y = tSNE2)) + 
+        ggplot2::geom_point(ggplot2::aes(tSNE1, tSNE2, color = `Z Score`), 
                             size = Size) + 
         ggplot2::scale_color_gradientn(colors = col_pal) + 
         
