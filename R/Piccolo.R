@@ -2001,8 +2001,11 @@ NormalizeForSeurat <- function (Obj, Transform = "log", SizeFactors = NULL, verb
     data.table::fwrite(data.frame(Std.Mat), file = FileName, 
                        row.names = F, col.names = F, sep = ",")
   }
+  
   Obj@assays$SCT@scale.data <- Std.Mat
   Obj@assays$SCT@misc$PiccoloInfo <- PiccoloList
+  Obj@assays$SCT@var.features <- PiccoloList$HVG$V1
+  
   if (is(Obj@assays$RNA)[1] == "Assay5"){
     UMI.Mat <- Matrix::t(Obj@assays$RNA$counts)
   } else {
