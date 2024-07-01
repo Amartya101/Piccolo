@@ -311,8 +311,7 @@ CreatePiccoloList <- function(MTX, Genes, Barcodes,verbose = T)
   if (verbose == T){
     message("Importing files...")
   }
-  UMI.Mat <- Matrix::readMM(file = MTX)
-  UMI.Mat <- methods::as(UMI.Mat, "CsparseMatrix")
+  UMI.Mat <- methods::as(Matrix::readMM(file = MTX),"CsparseMatrix")
   Gene.IDs <- read.delim(Genes, header = F, stringsAsFactors = F)
   if (ncol(Gene.IDs) == 1){
     colnames(Gene.IDs) <- c("V1")
