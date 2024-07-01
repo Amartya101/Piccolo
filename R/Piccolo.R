@@ -22,7 +22,7 @@ utils::globalVariables(c("UMAP1","UMAP2","UMAP_1", "UMAP_2", "Label","UMAP 1","U
 #' @import ggnetwork
 
 #' @title  ConvertToMTX
-#' @description  This function converts .csv or .txt counts files to .mtx format. Prepares the corresponding features.tsv and barcodes.tsv files as well.
+#' @description  This function converts .csv or .txt counts files to .mtx format. Prepares the corresponding features.tsv.gz and barcodes.tsv.gz files as well.
 #' @export
 #' @param X A character variable. Specifies the name of the file that contains the raw counts data (should be in .csv, .txt, or .tsv format). Make sure it is in the genes along rows and cells along columns format.
 #' @return Generates an .mtx.gz file (and features and barcodes files .tsv files) in the working directory that contains the input file.
@@ -63,12 +63,11 @@ ConvertToMTX <- function(X){
 
   #write feature names file
 
-  FileNameFeatures <- paste0(substr(X,1,nchar(X)-4),"_features.tsv")
-  write(x = rownames(UMI.Mat), file = FileNameFeatures)
+  write.table(rownames(UMI.Mat),gzfile(paste0(substr(X, 1, nchar(X) - 4), "_features.tsv.gz")),col.names = F,row.names = F,quote = F)
 
   #write barcodes file
-  FileNameBarcodes <- paste0(substr(X,1,nchar(X)-4),"_barcodes.tsv")
-  write(x = colnames(UMI.Mat), file = FileNameBarcodes)
+
+  write.table(colnames(UMI.Mat),gzfile(paste0(substr(X, 1, nchar(X) - 4), "_barcodes.tsv.gz")),col.names = F,row.names = F,quote = F)            
 
   closeAllConnections()
 
