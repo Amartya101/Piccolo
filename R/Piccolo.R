@@ -279,9 +279,8 @@ CombineMTX <- function (Path, MinFeaturesPerCell = 10, MT.Perc = 100, RP.Perc = 
                  ncol(mat1)), " cells in the filtered matrix.")
   message("Writing the mtx and tsv files...")
   suppressWarnings(writeMMgz(x = mat1, file = "matrix.mtx.gz"))
-  write.table(x = feature.names, file = "features.tsv", sep = "\t",
-              row.names = F, col.names = F, quote = F)
-  write(x = colnames(mat1), file = "barcodes.tsv")
+  write.table(feature.names,gzfile("features.tsv.gz"),sep = "\t",col.names = F,row.names = F,quote = F)
+  write.table(colnames(mat1),gzfile("barcodes.tsv.gz"),sep = "\t",col.names = F,row.names = F,quote = F)
   closeAllConnections()
   message("Successfully generated the output files.")
 }
