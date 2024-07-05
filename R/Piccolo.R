@@ -2835,6 +2835,7 @@ LeidentSNE <- function (PiccoloList,Levels = NULL, Alpha = 0.7, Size = 1.4,BaseS
 #' @param BaseSize A numeric variable. Specifies the base size of the text elements in the UMAP plot. Default is 28.
 #' @param Title A character variable. Specifies the title of the UMAP plot.
 #' @param LegendPosition A character variable. Specifies the position in the plot where the legend should be placed. Default is "right".
+#' @param col_pal. A character vector. Specifies the color palette to use for labeling the cells.
 #' @return A UMAP plot with the cells colored according to the cell labels provided by the user.
 #' @examples
 #' \dontrun{
@@ -2844,7 +2845,8 @@ LeidentSNE <- function (PiccoloList,Levels = NULL, Alpha = 0.7, Size = 1.4,BaseS
 #' Levels = c("b-cells","cd14 monocytes","dendritic","NK cells","naive cytotoxic"),
 #' Title = "PBMC3k")
 #' }
-LabelUMAP <- function (PiccoloList, Labels, Levels = NULL, Alpha = 0.7, Size = 1.4,BaseSize = 28,Title = "Piccolo",LegendPosition = "right"){
+LabelUMAP <- function (PiccoloList, Labels, Levels = NULL, Alpha = 0.7, Size = 1.4, 
+                       BaseSize = 28, Title = "Piccolo", LegendPosition = "right",col_pal = NULL) {
   UMAP.Coord.df <- PiccoloList$UMAP
   if (length(Labels) != length(UMAP.Coord.df$CellID)) {
     stop("The length of the Labels vector provided does not match the number of cells in the UMAP.")
@@ -2854,26 +2856,26 @@ LabelUMAP <- function (PiccoloList, Labels, Levels = NULL, Alpha = 0.7, Size = 1
   if (is.null(Levels) == F) {
     plot_data$Label <- factor(plot_data$Label, levels = Levels)
   }
-
   gg_color_hue <- function(n) {
     hues = seq(15, 375, length = n + 1)
     hcl(h = hues, l = 65, c = 100)[1:n]
-  }
-
-  if (length(table(Labels)) < 10){
-    cpal <- c("#4E79A7FF","#F28E2BFF","#B82E2EFF","#59A14FFF","#EDC948FF","#76B7B2FF","#B07AA1FF","#FF9DA7FF","#9C755FFF","#BAB0ACFF")
+  } 
+  
+  if (is.null(col_pal) != T & length(col_pal) >= length(table(Labels))){
+    cpal <- col_pal
+  } else if (length(table(Labels)) <= 10) {
+    cpal <- c("#4E79A7FF", "#F28E2BFF", "#B82E2EFF", "#59A14FFF", 
+              "#EDC948FF", "#76B7B2FF", "#B07AA1FF", "#FF9DA7FF", 
+              "#9C755FFF", "#BAB0ACFF")
   } else {
     cpal <- gg_color_hue(length(table(Labels)))
   }
-
-  p <- ggplot2::ggplot(plot_data, ggplot2::aes(`UMAP 1`, `UMAP 2`)) +
-    ggplot2::geom_point(ggplot2::aes(color = Label), alpha = Alpha,size = Size) +
-    ggplot2::scale_colour_manual(values=cpal) +
-    ggplot2::ggtitle(Title) +
-    ggplot2::theme_bw(base_size = BaseSize) + ggplot2::theme(panel.grid.major = ggplot2::element_blank(),panel.grid.minor = ggplot2::element_blank()) +
-    #ggplot2::theme(axis.text.x=ggplot2::element_blank(),axis.ticks.x=ggplot2::element_blank(),axis.text.y=ggplot2::element_blank(),axis.ticks.y=ggplot2::element_blank()) +
-    ggplot2::theme(legend.position = LegendPosition)
-
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(`UMAP 1`, `UMAP 2`)) + 
+    ggplot2::geom_point(ggplot2::aes(color = Label), alpha = Alpha, 
+                        size = Size) + ggplot2::scale_colour_manual(values = cpal) + 
+    ggplot2::ggtitle(Title) + ggplot2::theme_bw(base_size = BaseSize) + 
+    ggplot2::theme(panel.grid.major = ggplot2::element_blank(), 
+                   panel.grid.minor = ggplot2::element_blank()) + ggplot2::theme(legend.position = LegendPosition)
   return(p)
 }
 
@@ -2889,13 +2891,15 @@ LabelUMAP <- function (PiccoloList, Labels, Levels = NULL, Alpha = 0.7, Size = 1
 #' @param BaseSize A numeric variable. Specifies the base size of the text elements in the tSNE plot. Default is 28.
 #' @param Title A character variable. Specifies the title of the tSNE plot.
 #' @param LegendPosition A character variable. Specifies the position in the plot where the legend should be placed. Default is "right".
+#' @param col_pal. A character vector. Specifies the color palette to use for labeling the cells.
 #' @return A tSNE plot with the cells colored according to the cell labels provided by the user.
 #' @examples
 #' \dontrun{
 #' LabeltSNE(PiccoloList = pbmc3k)
 #' LabeltSNE(PiccoloList = pbmc3k, Title = "PBMC3k")
 #' }
-LabeltSNE <- function (PiccoloList, Labels, Levels = NULL, Alpha = 0.7, Size = 1.4,BaseSize = 24,Title = "Piccolo",LegendPosition = "right"){
+LabeltSNE <- function (PiccoloList, Labels, Levels = NULL, Alpha = 0.7, Size = 1.4, 
+                       BaseSize = 24, Title = "Piccolo", LegendPosition = "right",col_pal == NULL) {
   tSNE.Coord.df <- PiccoloList$tSNE$Y
   if (length(Labels) != length(tSNE.Coord.df$CellID)) {
     stop("The length of the Labels vector provided does not match the number of cells in the tSNE.")
@@ -2905,28 +2909,27 @@ LabeltSNE <- function (PiccoloList, Labels, Levels = NULL, Alpha = 0.7, Size = 1
   if (is.null(Levels) == F) {
     plot_data$Label <- factor(plot_data$Label, levels = Levels)
   }
-
   gg_color_hue <- function(n) {
     hues = seq(15, 375, length = n + 1)
     hcl(h = hues, l = 65, c = 100)[1:n]
   }
-
-  if (length(table(Labels)) < 10){
-    cpal <- c("#4E79A7FF","#F28E2BFF","#B82E2EFF","#59A14FFF","#EDC948FF","#76B7B2FF","#B07AA1FF","#FF9DA7FF","#9C755FFF","#BAB0ACFF")
+  if (is.null(col_pal) != T & length(col_pal) >= length(table(Labels))){
+    cpal <- col_pal
+  } else if (length(table(Labels)) <= 10) {
+    cpal <- c("#4E79A7FF", "#F28E2BFF", "#B82E2EFF", "#59A14FFF", 
+              "#EDC948FF", "#76B7B2FF", "#B07AA1FF", "#FF9DA7FF", 
+              "#9C755FFF", "#BAB0ACFF")
   } else {
     cpal <- gg_color_hue(length(table(Labels)))
   }
-  p <- ggplot2::ggplot(plot_data, ggplot2::aes(`tSNE 1`, `tSNE 2`)) +
-    ggplot2::geom_point(ggplot2::aes(color = Label), alpha = Alpha,size = Size) +
-    ggplot2::scale_colour_manual(values=cpal) +
-    ggplot2::ggtitle(Title) +
-    ggplot2::theme_bw(base_size = BaseSize) + ggplot2::theme(panel.grid.major = ggplot2::element_blank(),panel.grid.minor = ggplot2::element_blank()) +
-    #ggplot2::theme(axis.text.x=ggplot2::element_blank(),axis.ticks.x=ggplot2::element_blank(),axis.text.y=ggplot2::element_blank(),axis.ticks.y=ggplot2::element_blank()) +
-    ggplot2::theme(legend.position = LegendPosition)
-
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(`tSNE 1`, `tSNE 2`)) + 
+    ggplot2::geom_point(ggplot2::aes(color = Label), alpha = Alpha, 
+                        size = Size) + ggplot2::scale_colour_manual(values = cpal) + 
+    ggplot2::ggtitle(Title) + ggplot2::theme_bw(base_size = BaseSize) + 
+    ggplot2::theme(panel.grid.major = ggplot2::element_blank(), 
+                   panel.grid.minor = ggplot2::element_blank()) + ggplot2::theme(legend.position = LegendPosition)
   return(p)
 }
-
 
 #' @title  Calculate z-scores for gene set
 #' @description  This function combines and calculates z-scores for gene sets (even works for single genes).
