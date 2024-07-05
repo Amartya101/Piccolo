@@ -3161,7 +3161,7 @@ tSNEZScores <- function (PiccoloList, Name, xLabel = T, yLabel = T, Size = 1.4,
 PerformDiffExp <- function(PiccoloList,Group1,Group2,Transform = "log",Method = "t.test",Out = F){
   Relevant.Counts.Mat <- Matrix::t(PiccoloList$Counts)
   if (is.null(dim(PiccoloList$Genes))) {
-    if (is.null(PiccoloList$BatchLabels)) {
+    if (is.null(PiccoloList$BatchLabels) == F) {
       Features <- PiccoloList$HVG[[1]]
       FeaturesSerNos <- PiccoloList$HVG.Ser.Nos[[1]]
     } else {
