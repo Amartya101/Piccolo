@@ -2899,7 +2899,7 @@ LabelUMAP <- function (PiccoloList, Labels, Levels = NULL, Alpha = 0.7, Size = 1
 #' LabeltSNE(PiccoloList = pbmc3k, Title = "PBMC3k")
 #' }
 LabeltSNE <- function (PiccoloList, Labels, Levels = NULL, Alpha = 0.7, Size = 1.4, 
-                       BaseSize = 24, Title = "Piccolo", LegendPosition = "right",col_pal == NULL) {
+                       BaseSize = 24, Title = "Piccolo", LegendPosition = "right",col_pal = NULL) {
   tSNE.Coord.df <- PiccoloList$tSNE$Y
   if (length(Labels) != length(tSNE.Coord.df$CellID)) {
     stop("The length of the Labels vector provided does not match the number of cells in the tSNE.")
