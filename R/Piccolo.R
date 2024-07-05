@@ -790,7 +790,7 @@ SelectFeatures <- function(PiccoloList,NoOfHVG = NULL,Batch = NULL,MinPercNonZer
 
   } else if (is.null(Batch) != T){
 
-    if (length(Batch) != ncol(PiccoloList$Counts){
+    if (length(Batch) != ncol(PiccoloList$Counts)){
       stop("Number of Batch labels provided do not match the number of cells. Each cell needs to be assigned a batch label. Please verify.")
     } else {
       PiccoloList$BatchLabels <- Batch
