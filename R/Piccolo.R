@@ -790,6 +790,12 @@ SelectFeatures <- function(PiccoloList,NoOfHVG = NULL,Batch = NULL,MinPercNonZer
 
   } else if (is.null(Batch) != T){
 
+    if (length(Batch) != ncol(PiccoloList$Counts){
+      stop("Number of Batch labels provided do not match the number of cells. Each cell needs to be assigned a batch label. Please verify.")
+    } else {
+      PiccoloList$BatchLabels <- Batch
+    }  
+
     UMI.Mat <- PiccoloList$Counts
 
     NoOfHVGOrig <- NoOfHVG
@@ -3155,7 +3161,7 @@ tSNEZScores <- function (PiccoloList, Name, xLabel = T, yLabel = T, Size = 1.4,
 PerformDiffExp <- function(PiccoloList,Group1,Group2,Transform = "log",Method = "t.test",Out = F){
   Relevant.Counts.Mat <- Matrix::t(PiccoloList$Counts)
   if (is.null(dim(PiccoloList$Genes))) {
-    if (is.list(PiccoloList$HVG)) {
+    if (is.null(PiccoloList$BatchLabels)) {
       Features <- PiccoloList$HVG[[1]]
       FeaturesSerNos <- PiccoloList$HVG.Ser.Nos[[1]]
     } else {
