@@ -25,6 +25,5 @@ Imports:
     dbscan,
     cluster,
     uwot,
-    umap,
     Rtsne,
     viridis
