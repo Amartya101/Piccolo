@@ -1,5 +1,5 @@
 # Piccolo
-An R package for processing and analyzing single-cell counts data (Preprint can be found at [bioRxiv](https://www.biorxiv.org/content/10.1101/2023.03.02.530891v1) and peer-reviewed manuscript can be [here](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-024-05872-w))
+An R package for processing and analyzing single-cell counts data (Preprint can be found at [bioRxiv](https://www.biorxiv.org/content/10.1101/2023.03.02.530891v1) and the peer-reviewed manuscript (published in BMC Bioinformatics) can be found [here](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-024-05872-w))
 
 ## Getting Started
 
