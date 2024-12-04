@@ -3117,13 +3117,13 @@ tSNEZScores <- function (PiccoloList, Name, xLabel = T, yLabel = T, Size = 1.4,
 PerformDiffExp <- function(PiccoloList,Group1,Group2,Transform = "log",Method = "t.test",Out = F){
   Relevant.Counts.Mat <- Matrix::t(PiccoloList$Counts)
   if (is.null(dim(PiccoloList$Genes))) {
-    if (is.null(PiccoloList$BatchLabels) == F) {
-      Features <- PiccoloList$HVG[[1]]
-      FeaturesSerNos <- PiccoloList$HVG.Ser.Nos[[1]]
-    } else {
-      Features <- PiccoloList$HVG
-      FeaturesSerNos <- PiccoloList$HVG.Ser.Nos
-    }
+    if (is.null(PiccoloList$BatchLabels)) {
+        Features <- PiccoloList$HVG
+        FeaturesSerNos <- PiccoloList$HVG.Ser.Nos
+      }else {
+        Features <- PiccoloList$HVG[[1]]
+        FeaturesSerNos <- PiccoloList$HVG.Ser.Nos[[1]]
+      }
   } else {
     Features <- data.frame(V1 = PiccoloList$HVG$V1,V2 = PiccoloList$HVG$V2)
     FeaturesSerNos <- PiccoloList$HVG.Ser.Nos
