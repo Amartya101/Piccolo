@@ -91,7 +91,7 @@ ConvertToMTX <- function(X){
 CombineMTX <- function (Path, MinFeaturesPerCell = 10, MT.Perc = 100, RP.Perc = 100,verbose = T)
 {
   setwd(Path)
-  FolderNames <- list.dirs()[-1]
+  FolderNames <- list.dirs(recursive = F)
   mat1 <- Matrix::Matrix(0, nrow = 2, ncol = 2)
   colnames(mat1) <- c("A", "B")
   for (i in 1:length(FolderNames)) {
@@ -121,7 +121,7 @@ CombineMTX <- function (Path, MinFeaturesPerCell = 10, MT.Perc = 100, RP.Perc = 
         List.For.GS.Col <- vector(mode = "list", length = ncol(feature.names))
         for (j in 1:ncol(feature.names)) {
           List.For.GS.Col[[j]] <- which(substr(toupper(feature.names[,j]), 1, 3) == "RPL" | substr(toupper(feature.names[,
-                                                                                                                        j]), 1, 3) == "RPS")
+                                                                                                                         j]), 1, 3) == "RPS")
         }
         GS.Col <- which(unlist(lapply(List.For.GS.Col,length)) != 0)
         if (length(GS.Col) == 1) {
@@ -222,13 +222,13 @@ CombineMTX <- function (Path, MinFeaturesPerCell = 10, MT.Perc = 100, RP.Perc = 
   if (verbose == T){
     message("Filtering...")
   }
-
+  
   if (is.character(feature.names) != T) {
     MT.Features <- grep("MT-", toupper(feature.names[, GS.Col]),fixed = T)
   } else {
     MT.Features <- grep("MT-", toupper(feature.names),fixed = T)
   }
-
+  
   if (length(MT.Features) != 0) {
     MT.mat <- mat1[MT.Features,]
     MT.Col.Sums <- Matrix::colSums(MT.mat)
@@ -239,13 +239,13 @@ CombineMTX <- function (Path, MinFeaturesPerCell = 10, MT.Perc = 100, RP.Perc = 
     }
     MT.In.Prop.Total.Sum <- c()
   }
-
+  
   if (is.character(feature.names) != T) {
     RP.Features <- which(substr(toupper(feature.names[, GS.Col]), 1, 3) == "RPL" | substr(toupper(feature.names[, GS.Col]), 1, 3) == "RPS" | substr(toupper(feature.names[, GS.Col]),1, 3) %in% c("FAU", "UBA52"))
   } else {
     RP.Features <- which(substr(toupper(feature.names), 1, 3) == "RPL" | substr(toupper(feature.names), 1, 3) == "RPS" | substr(toupper(feature.names),1, 3) %in% c("FAU", "UBA52"))
   }
-
+  
   if (length(RP.Features) != 0) {
     RP.mat <- mat1[RP.Features,]
     RP.Col.Sums <- Matrix::colSums(RP.mat)
@@ -255,7 +255,7 @@ CombineMTX <- function (Path, MinFeaturesPerCell = 10, MT.Perc = 100, RP.Perc = 
     if (verbose == T){
       message("RP genes not detected in features.")
     }
-
+    
     RP.In.Prop.Total.Sum <- c()
   }
   Cells.To.Remove <- unique(c(which(MT.In.Prop.Total.Sum >
