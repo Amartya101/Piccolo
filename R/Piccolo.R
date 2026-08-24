@@ -3752,7 +3752,7 @@ MarkersPerCluster <- function(PiccoloList,NoOfGenes = 100){
 #' @export
 #' @param PiccoloList A list object. Piccolo list object obtained after performing clustering (Leiden or Louvain or Piccolo community finder).
 #' @param AUPRCthres A numeric variable. Specifies the minimum area under the precision-recall curve (AUPRC) value that must be obtained with each cluster's marker gene sets composite z-scores for the cluster to be considered robust.
-#' @param AUCthres A numeric variable. Specifies the minimum area under the receiver-operator characteristics curve (AUC) value that must be obtained with each cluster's marker gene sets composite z-scores for the cluster to be considered robust.
+#' @param AUCthres A numeric variable. Specifies the minimum area under the receiver operating characteristic curve (AUROC) value that must be obtained with each cluster's marker gene sets composite z-scores for the cluster to be considered robust.
 #' @param predConf A numeric variable. Minimum confidence level expected while assigning labels to cells based on the labels of their k-NN sets. Specified as a proportion (default set to 0.95).
 #' @param minClustSize An integer variable. The minimum number of cells that must be present in the final refined robust clusters.
 #' @return An updated PiccoloList containing lists with predicted and robust cluster labels for each cell.
