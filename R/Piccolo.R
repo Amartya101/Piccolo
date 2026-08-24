@@ -3337,6 +3337,884 @@ GetClusterMarkers <- function(PiccoloList,MeanDiffSD = 2.5,pValcutoff = NULL,FDR
   return(PiccoloList)
 }
 
+#' @title  Marker genes per cluster
+#' @description  This function shortlists marker gene sets for each cluster. This is an updated version of GetClusterMarkers which will be deprecated in next version update.
+#' @export
+#' @param PiccoloList A list object. Piccolo list object obtained after performing clustering (Leiden or Louvain).
+#' @param NoOfGenes. An integer specifying number of top marker genes to be shortlisted for each cluster. Default is 100.
+#' @return An updated PiccoloList containing a list with top marker genes per cluster.
+#' @examples
+#' \dontrun{
+#' pbmc3k <- MarkersPerCluster(PiccoloList = pbmc3k)
+#' pbmc3k <- MarkersPerCluster(PiccoloList = pbmc3k,
+#' NoOfGenes = 50)
+#' }
+MarkersPerCluster <- function(PiccoloList,NoOfGenes = 100){
+  
+  #rowscale function
+  rowScale = function(x,
+                      center = TRUE,
+                      scale = TRUE,
+                      add_attr = TRUE,
+                      rows = NULL,
+                      cols = NULL) {
+    
+    if (!is.null(rows) && !is.null(cols)) {
+      x <- x[rows, cols, drop = FALSE]
+    } else if (!is.null(rows)) {
+      x <- x[rows, , drop = FALSE]
+    } else if (!is.null(cols)) {
+      x <- x[, cols, drop = FALSE]
+    }
+    
+    ################
+    # Get the column means
+    ################
+    cm = rowMeans(x, na.rm = TRUE)
+    ################
+    # Get the column sd
+    ################
+    if (scale) {
+      csd = matrixStats::rowSds(x, center = cm)
+    } else {
+      # just divide by 1 if not
+      csd = rep(1, length = length(cm))
+    }
+    if (!center) {
+      # just subtract 0
+      cm = rep(0, length = length(cm))
+    }
+    x = (x - cm) / csd
+    if (add_attr) {
+      if (center) {
+        attr(x, "scaled:center") <- cm
+      }
+      if (scale) {
+        attr(x, "scaled:scale") <- csd
+      }
+    }
+    return(x)
+  }
+  
+  UniqueClusterLabels <- sort(as.numeric(unique(PiccoloList$ClusterLabels)))
+  
+  means.mat <- matrix(0,nrow = nrow(PiccoloList$NormCounts),ncol = length(UniqueClusterLabels))
+  
+  A <- matrix(0,nrow = 2,ncol = length(UniqueClusterLabels))
+  
+  if(is(PiccoloList$NormCounts,"CsparseMatrix") == F){
+    for (i in 1:length(UniqueClusterLabels)){
+      CellsInClusterI <- which(as.numeric(PiccoloList$ClusterLabels) == UniqueClusterLabels[i])
+      
+      means.mat[,i] <- matrixStats::rowMeans2(PiccoloList$NormCounts[,CellsInClusterI])# - matrixStats::rowMeans2(PiccoloList$NormCounts[,-CellsInClusterI])
+    }
+  } else {
+    SeqNos <- seq(1,nrow(PiccoloList$NormCounts),100)
+    if (nrow(PiccoloList$NormCounts) - SeqNos[length(SeqNos)] < 2){
+      SeqNos[length(SeqNos)] <- SeqNos[length(SeqNos)] - 2
+    }  
+    
+    t1 <- 1
+    for (t1 in 1:length(SeqNos)){
+      Start <- SeqNos[t1]
+      if (t1 == length(SeqNos)){
+        End <- nrow(PiccoloList$NormCounts)
+      } else {
+        End <- SeqNos[t1+1]-1
+      }
+      NormCounts <- rowScale(as.matrix(PiccoloList$NormCounts[Start:End,]))
+      temp.means.mat <- matrix(0,nrow = length(Start:End),ncol = length(UniqueClusterLabels))
+      i <- 1
+      for (i in 1:length(UniqueClusterLabels)){
+        CellsInClusterI <- which(as.numeric(PiccoloList$ClusterLabels) == UniqueClusterLabels[i])
+        temp.means.mat[,i] <- matrixStats::rowMeans2(NormCounts[,CellsInClusterI])# - matrixStats::rowMeans2(NormCounts[,-CellsInClusterI])
+        #means.mat[,i] <- Matrix::rowMeans(PiccoloList$NormCounts[,CellsInClusterI])# - Matrix::rowMeans(PiccoloList$NormCounts[,-CellsInClusterI])
+      }
+      
+      if (t1 == 1){
+        means.mat <- rbind(A,temp.means.mat)
+      } else {
+        means.mat <- rbind(means.mat,temp.means.mat)
+      }
+    }
+    means.mat <- means.mat[-c(1,2),]
+  }  
+  
+  PiccoloList$MeansPerCluster <- means.mat
+  
+  meansdiff.mat <- matrix(0,nrow = nrow(PiccoloList$NormCounts),ncol = length(UniqueClusterLabels))
+  
+  i <- 1
+  for (i in 1:ncol(meansdiff.mat)){
+    meansdiff.mat[,i] <- means.mat[,i] - apply(means.mat[,-i],1,max)
+  }
+  
+  PiccoloList$MeanDiffsPerCluster <- meansdiff.mat
+  
+  means.diffmax.mat <- means.mat - apply(means.mat,1,max)
+  
+  # x3.mat <- apply(means.diffmax.mat,1,function(x) order(x,decreasing = T))
+  # 
+  
+  #Refined.meandiff <- means.mat + meansdiff.mat
+  Refined.meandiff <- means.mat + means.diffmax.mat
+  
+  x2.mat <- apply(means.mat,2,function(x) order(x,decreasing = T))
+  
+  x2.list <- vector(mode = "list",length = ncol(x2.mat))
+  i <- 1
+  for (i in 1:length(x2.list)){
+    
+    TempVec <- 1:NoOfGenes
+    
+    if (length(TempVec) >= NoOfGenes){
+      x2.list[[i]] <- x2.mat[1:NoOfGenes,i]
+    } else if (length(TempVec) != 0) {
+      x2.list[[i]] <- x2.mat[1:length(TempVec),i]
+    } else {
+      x2.list[[i]] <- x2.mat[1,i]
+    }
+    
+  }
+  
+  x2.vals <- vector(mode = "list",length = length(x2.list))
+  i <- 1
+  for (i in 1:length(x2.list)){
+    
+    if (is.null(dim(PiccoloList$HVG))){
+      x2.vals[[i]] <- means.mat[x2.mat[,i],i]
+      names(x2.vals[[i]]) <- means.mat[[1]]$V1[x2.mat[,i]]
+    } else {
+      x2.vals[[i]] <- means.mat[x2.mat[,i],i]
+      names(x2.vals[[i]]) <- PiccoloList$HVG$V1[x2.mat[,i]]
+    }
+    
+  }
+  
+  x3.vals <- vector(mode = "list",length = length(x2.list))
+  i <- 1
+  for (i in 1:length(x2.list)){
+    
+    if (is.null(dim(PiccoloList$HVG))){
+      x3.vals[[i]] <- Refined.meandiff[x2.mat[,i],i]
+      names(x3.vals[[i]]) <- PiccoloList$HVG[[1]]$V1[x2.mat[,i]]
+    } else {
+      x3.vals[[i]] <- Refined.meandiff[x2.mat[,i],i]
+      names(x3.vals[[i]]) <- PiccoloList$HVG$V1[x2.mat[,i]]
+    }
+  }
+  
+  x2 <- x2.list
+  
+  #Remove nested subgraphs
+  NestedSets <- vector(mode = "numeric")
+  for (i in 1:length(x2)){
+    TempI <- length(x2) - (i-1)
+    Temp.Set.I <- x2[[TempI]]
+    j <- 1
+    Temp.Intersection <- 1
+    while(Temp.Intersection != 0 & TempI != j){
+      Temp.Set.J <- x2[[j]]
+      Temp.Intersection <- length(Temp.Set.I) - length(intersect(Temp.Set.I,Temp.Set.J))
+      if (Temp.Intersection == 0 & TempI != j & length(Temp.Set.J) >= length(Temp.Set.I)){
+        NestedSets <- c(NestedSets,TempI)
+      }
+      j <- j + 1
+    }
+  }
+  
+  if (length(NestedSets) != 0){
+    i <- 1
+    for (i in 1:length(NestedSets)){
+      x2[[NestedSets[i]]] <- vector(mode = "numeric")
+      x2.vals[[NestedSets[i]]] <- vector(mode = "numeric")
+    }
+  }
+  
+  MarkersPerCluster <- vector(mode = "list",length = ncol(meansdiff.mat))
+  MarkerScores <- vector(mode = "list",length = ncol(meansdiff.mat))
+  for (t in 1:ncol(meansdiff.mat)){
+    if (is.null(dim(PiccoloList$HVG))){
+      PosMarkers <- which(x3.vals[[t]] > 0)
+      if (length(PosMarkers) >= NoOfGenes){
+        MarkersPerCluster[[t]] <- PiccoloList$HVG[[1]]$V1[x2[[t]]]
+      } else if (length(PosMarkers) > 0 & length(PosMarkers) < NoOfGenes){
+        MarkersPerCluster[[t]] <- PiccoloList$HVG[[1]]$V1[x2[[t]][PosMarkers]]
+      } else {
+        MarkersPerCluster[[t]] <- c(PiccoloList$HVG[[1]]$V1[x2[[t]][PosMarkers[1]]])
+      }
+      
+      if (is.null(PiccoloList$HVG[[1]]$V2)){
+        MarkerScores[[t]] <- data.frame(V1 = names(x2.vals[[t]]),ZScore = as.numeric(x2.vals[[t]]))
+      } else {
+        MarkerScores[[t]] <- data.frame(V1 = names(x2.vals[[t]]),V2 = PiccoloList$HVG[[1]]$V2[x2.mat[,t]],ZScore = as.numeric(x2.vals[[t]]))
+      }
+      
+    } else{
+      PosMarkers <- which(x3.vals[[t]] > 0)
+      
+      if (length(PosMarkers) >= NoOfGenes){
+        MarkersPerCluster[[t]] <- PiccoloList$HVG$V1[x2[[t]]]
+      } else if (length(PosMarkers) > 0 & length(PosMarkers) < NoOfGenes){
+        MarkersPerCluster[[t]] <- PiccoloList$HVG$V1[x2[[t]][PosMarkers]]
+      } else {
+        MarkersPerCluster[[t]] <- c(PiccoloList$HVG$V1[x2[[t]][PosMarkers[1]]])
+      }
+      if (is.null(PiccoloList$HVG$V2)){
+        MarkerScores[[t]] <- data.frame(V1 = names(x2.vals[[t]]),V2 = names(x2.vals[[t]]),ZScore = as.numeric(x2.vals[[t]]))
+      } else {
+        MarkerScores[[t]] <- data.frame(V1 = names(x2.vals[[t]]),V2 = PiccoloList$HVG$V2[x2.mat[,t]],ZScore = as.numeric(x2.vals[[t]]))
+      }
+    }
+  }
+  
+  names(MarkersPerCluster) <- UniqueClusterLabels
+  names(MarkerScores) <- UniqueClusterLabels
+  
+  PiccoloList$MarkersPerCluster <- MarkersPerCluster
+  
+  PiccoloList$MarkerScoresPerCluster <- MarkerScores
+  
+  #for diffs 
+  
+  Refined.meandiff <- meansdiff.mat
+  
+  x2.mat <- apply(Refined.meandiff,2,function(x) order(x,decreasing = T))
+  
+  x2.list <- vector(mode = "list",length = ncol(x2.mat))
+  i <- 1
+  for (i in 1:length(x2.list)){
+    
+    TempVec <- 1:NoOfGenes
+    
+    if (length(TempVec) >= NoOfGenes){
+      x2.list[[i]] <- x2.mat[1:NoOfGenes,i]
+    } else if (length(TempVec) != 0) {
+      x2.list[[i]] <- x2.mat[1:length(TempVec),i]
+    } else {
+      x2.list[[i]] <- x2.mat[1,i]
+    }
+    
+  }
+  
+  x2.vals <- vector(mode = "list",length = length(x2.list))
+  i <- 1
+  for (i in 1:length(x2.list)){
+    
+    if (is.null(dim(PiccoloList$HVG))){
+      
+      x2.vals[[i]] <- Refined.meandiff[x2.mat[,i],i]
+      names(x2.vals[[i]]) <- PiccoloList$HVG[[1]]$V1[x2.mat[,i]]
+    } else {
+      
+      x2.vals[[i]] <- Refined.meandiff[x2.mat[,i],i]
+      names(x2.vals[[i]]) <- PiccoloList$HVG$V1[x2.mat[,i]]
+    }
+    
+  }
+  
+  x2 <- x2.list
+  
+  
+  #Remove nested subgraphs
+  NestedSets <- vector(mode = "numeric")
+  for (i in 1:length(x2)){
+    TempI <- length(x2) - (i-1)
+    Temp.Set.I <- x2[[TempI]]
+    j <- 1
+    Temp.Intersection <- 1
+    while(Temp.Intersection != 0 & TempI != j){
+      Temp.Set.J <- x2[[j]]
+      Temp.Intersection <- length(Temp.Set.I) - length(intersect(Temp.Set.I,Temp.Set.J))
+      if (Temp.Intersection == 0 & TempI != j & length(Temp.Set.J) >= length(Temp.Set.I)){
+        NestedSets <- c(NestedSets,TempI)
+      }
+      j <- j + 1
+    }
+  }
+  
+  if (length(NestedSets) != 0){
+    i <- 1
+    for (i in 1:length(NestedSets)){
+      x2[[NestedSets[i]]] <- vector(mode = "numeric")
+      x2.vals[[NestedSets[i]]] <- vector(mode = "numeric")
+    }
+  }
+  
+  MarkersPerCluster <- vector(mode = "list",length = ncol(meansdiff.mat))
+  MarkerScores <- vector(mode = "list",length = ncol(meansdiff.mat))
+  for (t in 1:ncol(meansdiff.mat)){
+    if (is.null(dim(PiccoloList$HVG))){
+      PosMarkers <- which(x2.vals[[t]] > 0)
+      if (length(PosMarkers) >= NoOfGenes){
+        MarkersPerCluster[[t]] <- PiccoloList$HVG[[1]]$V1[x2[[t]]]
+      } else if (length(PosMarkers) > 0 & length(PosMarkers) < NoOfGenes){
+        MarkersPerCluster[[t]] <- PiccoloList$HVG[[1]]$V1[x2[[t]][PosMarkers]]
+      } else {
+        MarkersPerCluster[[t]] <- PiccoloList$HVG[[1]]$V1[x2[[t]][PosMarkers[1]]]
+      }
+      
+      if (is.null(PiccoloList$HVG[[1]]$V2)){
+        MarkerScores[[t]] <- data.frame(V1 = names(x2.vals[[t]]),V2 = names(x2.vals[[t]]),MeanDiffScore = as.numeric(x2.vals[[t]]))
+      } else {
+        MarkerScores[[t]] <- data.frame(V1 = names(x2.vals[[t]]),V2 = PiccoloList$HVG[[1]]$V2[x2.mat[,t]],MeanDiffScore = as.numeric(x2.vals[[t]]))
+      }
+      
+      
+      #names(MarkerScores[[t]]) <- MarkersPerCluster[[t]]
+    } else{
+      PosMarkers <- which(x2.vals[[t]] > 0)
+      if (length(PosMarkers) >= NoOfGenes){
+        MarkersPerCluster[[t]] <- PiccoloList$HVG$V1[x2[[t]]]
+      } else if (length(PosMarkers) > 0 & length(PosMarkers) < NoOfGenes){
+        MarkersPerCluster[[t]] <- PiccoloList$HVG$V1[x2[[t]][PosMarkers]]
+      } else {
+        MarkersPerCluster[[t]] <- PiccoloList$HVG$V1[x2[[t]][PosMarkers[1]]]
+      }
+      if (is.null(PiccoloList$HVG$V2)){
+        MarkerScores[[t]] <- data.frame(V1 = names(x2.vals[[t]]),V2 = names(x2.vals[[t]]),ZScore = as.numeric(x2.vals[[t]]))
+      } else {
+        MarkerScores[[t]] <- data.frame(V1 = names(x2.vals[[t]]),V2 = PiccoloList$HVG$V2[x2.mat[,t]],ZScore = as.numeric(x2.vals[[t]]))
+      }
+    }
+  }
+  
+  names(MarkersPerCluster) <- UniqueClusterLabels
+  names(MarkerScores) <- UniqueClusterLabels
+  
+  PiccoloList$MarkersPerClusterDiff <- MarkersPerCluster
+  
+  PiccoloList$MarkerScoresPerClusterDiff <- MarkerScores
+  
+  
+   #function to compute weighted z-score
+   CompositeWeightedZScore <- function(PiccoloList,Genes){
+     if (is.null(dim(PiccoloList$HVG))){
+       GenesSerNos <- which(PiccoloList$HVG[[1]]$V1 %in% Genes)
+     }else{
+       GenesSerNos <- which(PiccoloList$HVG$V1 %in% Genes)
+       if (length(GenesSerNos) == 0){
+         stop("None of the genes provided were shortlisted as variable genes.")
+       }
+     }
+     if (length(GenesSerNos) > 1){
+       TempResMat <- PiccoloList$NormCounts[GenesSerNos,]
+       SD.Per.Feature <- apply(TempResMat,1,sd)
+       WeightedZScores <- apply(TempResMat,2,function(x) sum((x*SD.Per.Feature))/sqrt(sum(SD.Per.Feature^2)))
+       #WeightedZScores <- apply(TempResMat,2,function(x) sum(x)/sqrt(length(x)))
+       WeightedZScores <- WeightedZScores - mean(WeightedZScores)
+     } else {
+       TempResVec <- as.vector(PiccoloList$NormCounts[GenesSerNos,])
+       WeightedZScores <- TempResVec
+     }
+
+     return(WeightedZScores)
+   }
+
+   ClusterZScores <- function(PiccoloList){
+
+     Eligible <- unlist(lapply(PiccoloList$MarkersPerCluster,length))
+
+     EligibleCommunities <- as.numeric(names(Eligible)[which(Eligible > 0)])
+     #EligibleCommunities <- 1:length(PiccoloList$MarkersPerCluster)
+     ClusterZScoresMat <- matrix(0,nrow = length(EligibleCommunities),ncol = ncol(PiccoloList$NormCounts))
+     for (i in 1:length(EligibleCommunities)){
+       Cluster <- EligibleCommunities[i]
+
+       TempI <- which(as.numeric(names(PiccoloList$MarkersPerCluster)) == Cluster)
+
+       if (is.null(dim(PiccoloList$HVG))){
+         GenesOfInterest <- PiccoloList$MarkersPerCluster[[TempI]]
+       } else{
+         GenesOfInterest <- PiccoloList$MarkersPerCluster[[TempI]]
+       }
+
+       if (length(GenesOfInterest) != 0){
+         ClusterZScoresMat[i,] <- CompositeWeightedZScore(PiccoloList = PiccoloList,Genes = GenesOfInterest)
+       }
+     }
+     rownames(ClusterZScoresMat) <- EligibleCommunities
+     PiccoloList$ClusterZScoresMat <- ClusterZScoresMat
+     PiccoloList$ScoreBasedCellLabels <- apply(PiccoloList$ClusterZScoresMat,2,function(x) as.numeric(rownames(PiccoloList$ClusterZScoresMat)[which(x == max(x) & x > 0)[1]]))
+
+     return(PiccoloList)
+   }
+
+   message("Computing composite z-scores using the marker genes for each cluster...")
+   PiccoloList <- ClusterZScores(PiccoloList = PiccoloList)
+   message("Done.")
+
+  return(PiccoloList)
+}
+
+#' @title Refine graph-derived cell-clusters to obtain robust cell-clusters
+#' @description  This function refines cell-clusters to obtain robust clusters satisfying AUPRC and AUROC thresholds based on their marker gene sets
+#' @export
+#' @param PiccoloList A list object. Piccolo list object obtained after performing clustering (Leiden or Louvain or Piccolo community finder).
+#' @param AUPRCthres A numeric variable. Specifies the minimum area under the precision-recall curve (AUPRC) value that must be obtained with each cluster's marker gene sets composite z-scores for the cluster to be considered robust.
+#' @param AUCthres A numeric variable. Specifies the minimum area under the receiver-operator characteristics curve (AUC) value that must be obtained with each cluster's marker gene sets composite z-scores for the cluster to be considered robust.
+#' @param predConf A numeric variable. Minimum confidence level expected while assigning labels to cells based on the labels of their k-NN sets. Specified as a proportion (default set to 0.95).
+#' @param minClustSize An integer variable. The minimum number of cells that must be present in the final refined robust clusters.
+#' @return An updated PiccoloList containing lists with predicted and robust cluster labels for each cell.
+#' @examples
+#' \dontrun{
+#' pbmc3k <- IdentifyRobustClustersAndRefine(PiccoloList = pbmc3k)
+#' pbmc3k <- IdentifyRobustClustersAndRefine(PiccoloList = pbmc3k,AUPRCthres = 0.65,AUCthres = 0.9)
+#' }
+IdentifyRobustClustersAndRefine <- function(PiccoloList,AUPRCthres = 0.5,AUCthres = 0.85,predConf = 0.95,minClustSize = 5){
+  
+  #function to compute weighted z-score
+  CompositeWeightedZScore <- function(PiccoloList,Genes){
+    if (is.null(dim(PiccoloList$HVG))){
+      GenesSerNos <- which(PiccoloList$HVG[[1]]$V1 %in% Genes)
+    }else{
+      GenesSerNos <- which(PiccoloList$HVG$V1 %in% Genes)
+      if (length(GenesSerNos) == 0){
+        stop("None of the genes provided were shortlisted as variable genes.")
+      }
+    }
+    if (length(GenesSerNos) > 1){
+      TempResMat <- PiccoloList$NormCounts[GenesSerNos,]
+      SD.Per.Feature <- apply(TempResMat,1,sd)
+      WeightedZScores <- apply(TempResMat,2,function(x) sum((x*SD.Per.Feature))/sqrt(sum(SD.Per.Feature^2)))
+      #WeightedZScores <- apply(TempResMat,2,function(x) sum(x)/sqrt(length(x)))
+      WeightedZScores <- WeightedZScores - mean(WeightedZScores)
+    } else {
+      TempResVec <- as.vector(PiccoloList$NormCounts[GenesSerNos,])
+      WeightedZScores <- TempResVec
+    }
+    
+    return(WeightedZScores)
+  }
+  
+  ClusterZScores <- function(PiccoloList){
+    
+    Eligible <- unlist(lapply(PiccoloList$MarkersPerCluster,length))
+    
+    EligibleCommunities <- as.numeric(names(Eligible)[which(Eligible > 0)])
+    #EligibleCommunities <- 1:length(PiccoloList$MarkersPerCluster)
+    ClusterZScoresMat <- matrix(0,nrow = length(EligibleCommunities),ncol = ncol(PiccoloList$NormCounts))
+    for (i in 1:length(EligibleCommunities)){
+      Cluster <- EligibleCommunities[i]
+      
+      TempI <- which(as.numeric(names(PiccoloList$MarkersPerCluster)) == Cluster)
+      
+      if (is.null(dim(PiccoloList$HVG))){
+        GenesOfInterest <- PiccoloList$MarkersPerCluster[[TempI]]
+      } else{
+        GenesOfInterest <- PiccoloList$MarkersPerCluster[[TempI]]
+      }
+      
+      if (length(GenesOfInterest) != 0){
+        ClusterZScoresMat[i,] <- CompositeWeightedZScore(PiccoloList = PiccoloList,Genes = GenesOfInterest)
+      }
+    }
+    rownames(ClusterZScoresMat) <- EligibleCommunities
+    PiccoloList$ClusterZScoresMat <- ClusterZScoresMat
+    PiccoloList$ScoreBasedCellLabels <- apply(PiccoloList$ClusterZScoresMat,2,function(x) as.numeric(rownames(PiccoloList$ClusterZScoresMat)[which(x == max(x) & x > 0)[1]]))
+    return(PiccoloList)
+  }
+  
+  #function to predict labels
+  PredictLabels <- function(PiccoloList,k = NULL,KnownLabels = NULL,p.thres = 0.05){
+    
+    if(is.null(KnownLabels)){
+      stop("Known labels not provided. Please provide character vector with known cell labels.")
+    }
+    
+    PiccoloList$KnownLabels <- KnownLabels
+    
+    NonNAKnownLabels <- na.omit(KnownLabels)
+    
+    if (is.null(k) == T){
+      kNN.Mat <- PiccoloList$kNN$id
+      
+      kNN.dist <- PiccoloList$kNN$dist
+    } else {
+      #Find k nearest neighbors
+      NearestNeighbors <- function(PiccoloList,k = k,query = NULL,sort = TRUE,search = "kdtree",bucketSize = 10,splitRule = "suggest",approx = 0){
+        kNNList <- dbscan::kNN(x = PiccoloList$PCA$x,k = k,query = query,sort = sort,search = search,bucketSize = bucketSize,splitRule = splitRule,approx = approx)
+        return(kNNList)
+      }
+      
+      kNNList <- NearestNeighbors(PiccoloList = PiccoloList,k = k)
+      
+      kNN.Mat <- kNNList$id
+      
+      kNN.dist <- kNNList$dist
+    }
+    
+    DistMeans <- rowMeans(kNN.dist)
+    
+    IndicesToRemove <- which((kNN.dist - DistMeans) > sd(DistMeans),arr.ind = T)
+    
+    col1index <- IndicesToRemove[,1]
+    col2index <- IndicesToRemove[,2]
+    
+    if (length(col1index) != 0){
+      for (i in 1:length(col1index)){
+        kNN.Mat[col1index[i],col2index[i]] <- 0
+      }
+    }
+    
+    k <- ncol(kNN.Mat)
+    #Find cells in each group
+    Labels <- names(table(KnownLabels))
+    List.Cluster.Enrichments <- vector(mode = "list",length = length(Labels))
+    List.Cluster.Cells <- vector(mode = "list",length = length(Labels))
+    for (i in 1:length(Labels)){
+      List.Cluster.Cells[[i]] <- which(KnownLabels == Labels[i])
+      n <- nrow(kNN.Mat)
+      p.val.vec <- rep(1,n)
+      for (j in 1:nrow(kNN.Mat))
+      {
+        kNN.vec <- kNN.Mat[j,]
+        kNN.vec <- kNN.vec[!kNN.vec == 0]
+        t <- length(intersect(kNN.vec,List.Cluster.Cells[[i]]))
+        a <- length(List.Cluster.Cells[[i]])
+        b <- length(kNN.vec)
+        p.val.vec[j] <- sum(dhyper(t:b,a,n-a,b))
+      }
+      List.Cluster.Enrichments[[i]] <- p.val.vec
+    }
+    
+    #Predict labels for cells
+    Matrix.Cluster.Enrichments <- matrix(unlist(List.Cluster.Enrichments),nrow  = length(List.Cluster.Enrichments[[1]]))
+    p.threshold <- p.thres
+    Predicted.Cell.Labels <- rep(0,nrow(Matrix.Cluster.Enrichments))
+    for (i in 1:nrow(Matrix.Cluster.Enrichments)){
+      Min.p.val <- min(Matrix.Cluster.Enrichments[i,])
+      if (Min.p.val < p.threshold){
+        Predicted.Cell.Labels[i] <- Labels[which(Matrix.Cluster.Enrichments[i,] == Min.p.val)[1]]
+      }
+    }
+    PredictedLabels <- Predicted.Cell.Labels
+    return(PredictedLabels)
+  }
+  
+  ComputeAUPRCPerCluster <- function(PiccoloList,AUPRC.thres = 0.5,AUC.thres = 0.85){
+    
+    EligibleCommunities <- sort(as.numeric(rownames(PiccoloList$ClusterZScoresMat)))
+    
+    ClusterLabels <- as.numeric(PiccoloList$ClusterLabels)
+
+    UniqueClusterLabels <- EligibleCommunities
+    
+    PiccoloList$Original.MarkersPerCluster <- PiccoloList$MarkersPerCluster
+    
+    PiccoloList$Original.MarkerScoresPerCluster <- PiccoloList$MarkerScoresPerCluster
+    
+    AUPRC.vec <- vector(mode = "numeric",length = length(EligibleCommunities))
+    names(AUPRC.vec) <- EligibleCommunities
+    AUC.vec <- vector(mode = "numeric",length = length(EligibleCommunities))
+    names(AUC.vec) <- EligibleCommunities
+    i <- 1
+    for (i in 1:length(EligibleCommunities)){
+      ClusterI <- EligibleCommunities[i]
+      score <- PiccoloList$ClusterZScoresMat[as.numeric(rownames(PiccoloList$ClusterZScoresMat)) %in% ClusterI,]
+      label <- rep(0,length(score))
+      
+      label[which(ClusterLabels == UniqueClusterLabels[i])] <- 1
+      
+      if (length(which(label == 1)) == 0){
+        AUPRC.vec[i] <- 0
+        AUC.vec[i] <- 0
+      } else {
+        MDat <- precrec::mmdata(scores = score,labels = label)
+        EvMod <- precrec::evalmod(mdat = MDat)
+        
+        AUPRC.vec[i] <- (precrec::auc(EvMod)$aucs[2])# - length(which(label == 1))/length(score)#)/(1-(length(which(label == 1))/length(score)))
+        AUC.vec[i] <- precrec::auc(EvMod)$aucs[1] 
+      }
+      
+      AUPRC.vec[i] <- (precrec::auc(EvMod)$aucs[2])# - length(which(label == 1))/length(score)#)/(1-(length(which(label == 1))/length(score)))
+      AUC.vec[i] <- precrec::auc(EvMod)$aucs[1] 
+    }
+    
+    PiccoloList$Original.AUC <- AUC.vec
+    
+    PiccoloList$Original.AUPRC <- AUPRC.vec
+    
+    PiccoloList$AUC <- AUC.vec
+    
+    PiccoloList$AUPRC <- AUPRC.vec
+    
+    AUPRC.Ineligible <- as.numeric(names(PiccoloList$AUPRC)[which(PiccoloList$AUPRC < AUPRC.thres)])
+    AUC.Ineligible <- as.numeric(names(PiccoloList$AUC)[which(PiccoloList$AUC < AUC.thres)])
+    
+    IneligibleCommunities <- sort(unique(AUPRC.Ineligible,AUC.Ineligible))
+    
+    CumulativeIneligible <- IneligibleCommunities
+    
+    if (length(IneligibleCommunities) == 0){
+      message("All clusters satisfied given thresholds. Returning original clusters.")
+      PiccoloList$RobustLabels <- PL$ClusterLabels
+      PiccoloList$RobustRefinedLabels <- PL$ClusterLabels
+    }
+    
+    ClusterZScoresMat <- PiccoloList$ClusterZScoresMat
+    rownames(ClusterZScoresMat) <- EligibleCommunities
+    
+    while (length(IneligibleCommunities) != 0){
+      
+      PiccoloList$AUPRC <- PiccoloList$AUPRC[-which(names(PiccoloList$AUPRC) %in% IneligibleCommunities)]
+      PiccoloList$AUC <- PiccoloList$AUC[-which(names(PiccoloList$AUC) %in% IneligibleCommunities)]
+      
+      EligibleCommunities <- sort(EligibleCommunities[!EligibleCommunities %in% CumulativeIneligible])
+      
+      ClusterZScoresMat <- ClusterZScoresMat[which(as.numeric(rownames(ClusterZScoresMat)) %in% EligibleCommunities),]
+      
+      CellClusterLabels <- as.numeric(PiccoloList$ClusterLabels)
+      
+      TempClusterLabels <- apply(ClusterZScoresMat,2,function(x) as.numeric(rownames(ClusterZScoresMat)[which(x == max(x) & x > 0)[1]]))
+      
+      CellClusterLabels[which(CellClusterLabels %in% CumulativeIneligible)] <- TempClusterLabels[which(CellClusterLabels %in% CumulativeIneligible)]
+      
+      AUPRC.AUC.List <- CalcAUPRCAUCBasedOnPred(ZscoresMat = ClusterZScoresMat,Predicted = CellClusterLabels)
+      
+      PiccoloList$AUPRC <- AUPRC.AUC.List$AUPRC
+      PiccoloList$AUC <- AUPRC.AUC.List$AUC
+      
+      Diff.AUPRC <- PiccoloList$Original.AUPRC[names(PiccoloList$Original.AUPRC) %in% names(PiccoloList$AUPRC)] - PiccoloList$AUPRC
+      
+      Diff.AUC <- PiccoloList$Original.AUC[names(PiccoloList$Original.AUC) %in% names(PiccoloList$AUC)] - PiccoloList$AUC
+      
+      Avg.Diff <- (Diff.AUPRC + Diff.AUC)/2
+      
+      CommunitiesToRestore <- as.numeric(names(Diff.AUPRC)[which(Avg.Diff >= 0)])
+      
+      TempClusterLabels <- CellClusterLabels
+      
+      i <- 1
+      if (length(CommunitiesToRestore) != 0){
+        for (i in 1:length(CommunitiesToRestore)){
+          ClusterI <- CommunitiesToRestore[i]
+          TempClusterLabels[which(CellClusterLabels == ClusterI)] <- NA
+          #TempClusterLabels[which(CellClusterLabels == ClusterI)] <- ClusterLabels[which(CellClusterLabels == ClusterI)]
+          TempClusterLabels[which(ClusterLabels == ClusterI)] <- ClusterI 
+        }
+      }
+      
+      CellClusterLabels <- TempClusterLabels
+      
+      AUPRC.AUC.List <- CalcAUPRCAUCBasedOnPred(ZscoresMat = ClusterZScoresMat,Predicted = CellClusterLabels)
+      
+      PiccoloList$AUPRC <- AUPRC.AUC.List$AUPRC
+      PiccoloList$AUC <- AUPRC.AUC.List$AUC
+      
+      AUPRC.Ineligible <- as.numeric(names(AUPRC.AUC.List$AUPRC)[which(AUPRC.AUC.List$AUPRC < AUPRC.thres)])
+      AUC.Ineligible <- as.numeric(names(AUPRC.AUC.List$AUC)[which(AUPRC.AUC.List$AUC < AUC.thres)])
+      
+      IneligibleCommunities <- sort(unique(AUPRC.Ineligible,AUC.Ineligible))
+      
+      if (length(IneligibleCommunities) != 0){
+        PiccoloList$AUPRC <- PiccoloList$AUPRC[-which(names(PiccoloList$AUPRC) %in% IneligibleCommunities)]
+        PiccoloList$AUC <- PiccoloList$AUC[-which(names(PiccoloList$AUC) %in% IneligibleCommunities)]
+      }
+      
+      CumulativeIneligible <- sort(unique(c(IneligibleCommunities,CumulativeIneligible)))
+      
+      EligibleCommunities <- EligibleCommunities[!EligibleCommunities %in% IneligibleCommunities]
+    }
+    
+    if (length(CumulativeIneligible) == 0){
+      CellClusterLabels <- as.numeric(PiccoloList$ClusterLabels)
+    }else {
+      CellClusterLabels[which(CellClusterLabels %in% CumulativeIneligible)] <- NA
+    }
+    
+    if (length(which(is.na(CellClusterLabels))) != 0){
+      
+      ClusterZScoresMat <- PiccoloList$ClusterZScoresMat
+      
+      ClusterZScoresMat <- ClusterZScoresMat[which(as.numeric(rownames(ClusterZScoresMat)) %in% c(EligibleCommunities,CumulativeIneligible)),]
+      
+      TempClusterLabels <- apply(ClusterZScoresMat,2,function(x) as.numeric(rownames(ClusterZScoresMat)[which(x == max(x) & x > 0)[1]]))
+      
+      TempClusterLabels[TempClusterLabels %in% CellClusterLabels] <- NA
+      
+      TempCellClusterLabels <- CellClusterLabels
+      TempCellClusterLabels[which(is.na(CellClusterLabels))] <- TempClusterLabels[which(is.na(CellClusterLabels))]
+      
+      AUPRC.AUC.List <- CalcAUPRCAUCBasedOnPred(ZscoresMat = ClusterZScoresMat,Predicted = TempCellClusterLabels)
+      
+      RedeemedCommunities <- names(AUPRC.AUC.List$AUPRC)[which(AUPRC.AUC.List$AUPRC > AUPRC.thres & AUPRC.AUC.List$AUC > AUC.thres)]
+      
+      if (length(RedeemedCommunities) != 0){
+        TempCellClusterLabels[!TempCellClusterLabels %in% c(RedeemedCommunities,EligibleCommunities)] <- NA 
+        CellClusterLabels <- TempCellClusterLabels
+      }
+      
+      PiccoloList$AUC <- AUPRC.AUC.List$AUC[names(AUPRC.AUC.List$AUC) %in% RedeemedCommunities]
+      PiccoloList$AUPRC <- AUPRC.AUC.List$AUPRC[names(AUPRC.AUC.List$AUPRC) %in% RedeemedCommunities]
+      
+    } else {
+      
+      ClusterZScoresMat <- PiccoloList$ClusterZScoresMat
+      
+      ClusterZScoresMat <- ClusterZScoresMat[which(as.numeric(rownames(ClusterZScoresMat)) %in% c(EligibleCommunities,CumulativeIneligible)),]
+      
+      AUPRC.AUC.List <- CalcAUPRCAUCBasedOnPred(ZscoresMat = ClusterZScoresMat,Predicted = CellClusterLabels)
+      
+      PiccoloList$AUC <- AUPRC.AUC.List$AUC
+      PiccoloList$AUPRC <- AUPRC.AUC.List$AUPRC
+      
+    }
+    
+    PiccoloList$RobustLabels <- CellClusterLabels
+    
+    return(PiccoloList)
+  }
+  
+  CalcAUPRCAUCBasedOnPred <- function(ZscoresMat,Predicted){
+    EligibleCommunities <- sort(as.numeric(rownames(ZscoresMat)))
+    
+    AUPRC.vec <- vector(mode = "numeric",length = length(EligibleCommunities))
+    names(AUPRC.vec) <- EligibleCommunities
+    AUC.vec <- vector(mode = "numeric",length = length(EligibleCommunities))
+    names(AUC.vec) <- EligibleCommunities
+    i <- 1
+    for (i in 1:length(EligibleCommunities)){
+      ClusterI <- EligibleCommunities[i]
+      score <- ZscoresMat[as.numeric(rownames(ZscoresMat)) %in% ClusterI,]
+      label <- rep(0,length(score))
+      label[which(Predicted == ClusterI)] <- 1
+      
+      if (length(which(label == 1)) == 0){
+        AUPRC.vec[i] <- 0
+        AUC.vec[i] <- 0
+      } else {
+        MDat <- precrec::mmdata(scores = score,labels = label)
+        EvMod <- precrec::evalmod(mdat = MDat)
+        
+        AUPRC.vec[i] <- (precrec::auc(EvMod)$aucs[2])# - length(which(label == 1))/length(score)#)/(1-(length(which(label == 1))/length(score)))
+        AUC.vec[i] <- precrec::auc(EvMod)$aucs[1] 
+      } 
+    }
+    
+    AUC.AUPRC.List <- list()
+    
+    AUC.AUPRC.List$AUC <- AUC.vec
+    AUC.AUPRC.List$AUPRC <- AUPRC.vec
+    
+    return(AUC.AUPRC.List)
+  } 
+  
+  CalcAUPRCAUCBasedOnPredPL <- function(PiccoloList,Predicted){
+    EligibleCommunities <- as.numeric(names(PiccoloList$AUC))
+    
+    AUPRC.vec <- vector(mode = "numeric",length = length(EligibleCommunities))
+    names(AUPRC.vec) <- EligibleCommunities
+    AUC.vec <- vector(mode = "numeric",length = length(EligibleCommunities))
+    names(AUC.vec) <- EligibleCommunities
+    i <- 1
+    for (i in 1:length(EligibleCommunities)){
+      ClusterI <- EligibleCommunities[i]
+      score <- PiccoloList$ClusterZScoresMat[as.numeric(rownames(PiccoloList$ClusterZScoresMat)) %in% ClusterI,]
+      label <- rep(0,length(score))
+      label[which(Predicted == ClusterI)] <- 1
+      
+      if (length(which(label == 1)) == 0){
+        AUPRC.vec[i] <- 0
+        AUC.vec[i] <- 0
+      } else {
+        MDat <- precrec::mmdata(scores = score,labels = label)
+        EvMod <- precrec::evalmod(mdat = MDat)
+        
+        AUPRC.vec[i] <- (precrec::auc(EvMod)$aucs[2])# - length(which(label == 1))/length(score)#)/(1-(length(which(label == 1))/length(score)))
+        AUC.vec[i] <- precrec::auc(EvMod)$aucs[1]
+      }
+    }
+    
+    
+    PiccoloList$AUC <- AUC.vec
+    PiccoloList$AUPRC <- AUPRC.vec
+    
+    return(PiccoloList)
+  }
+  
+  RefineCellLabels <- function(PiccoloList,knownLabels,k = NULL,p.thres = 0.05){
+    PredictedLabels <- PredictLabels(PiccoloList = PiccoloList,k = k,KnownLabels = knownLabels,p.thres = p.thres)
+    PredictedLabels[which(PredictedLabels == 0)] <- NA
+    PiccoloList$RefinedCellLabels <- PredictedLabels
+    PiccoloList$RobustRefinedLabels <- PiccoloList$RefinedCellLabels
+    TempSerNo <- which(is.na(PiccoloList$RobustLabels))
+    if (length(TempSerNo) != 0){
+      PiccoloList$RobustRefinedLabels[TempSerNo] <- NA
+    }
+    
+    return(PiccoloList)
+  }
+  
+  FinalMarkersForClusters <- function(PiccoloList,CellLabels){
+    
+    OriginalClusterLabels <- PiccoloList$ClusterLabels
+    
+    PiccoloList$ClusterLabels <- CellLabels
+    
+    NA.Labels <- which(is.na(PL$RefinedCellLabels))
+    
+    PiccoloList <- MarkersPerCluster(PiccoloList = PiccoloList,NoOfGenes = max(unlist(lapply(PiccoloList$MarkersPerCluster,length))))
+    
+    PiccoloList$ClusterLabels <- OriginalClusterLabels
+    
+    return(PiccoloList)
+  }
+  
+  Pthres <- 1-predConf
+  if (Pthres <= 0 | Pthres > 1){
+    Pthres <- 0.001
+  }
+  
+  message("Computing AUPRC and AUC and identifying robust clusters...")
+  PiccoloList <- ComputeAUPRCPerCluster(PiccoloList = PiccoloList,AUPRC.thres = AUPRCthres,AUC.thres = AUCthres)
+  message("Done.")
+  NACells <- which(is.na(PiccoloList$RobustLabels))
+  message(paste0("There are ",length(NACells), " cells (",signif(length(NACells)/ncol(PiccoloList$ClusterZScoresMat) * 100,digits = 2),"%) ","labeled NA."))
+  
+  PiccoloList$ClusterZScoresMat <- PiccoloList$ClusterZScoresMat[which(as.numeric(rownames(PiccoloList$ClusterZScoresMat)) %in% sort(unique(PiccoloList$RobustLabels))),]
+  
+  if (length(NACells) > 1){
+    
+    message("Attempting to assign labels to some NA cells...")
+    
+    PredictedLabels <- PiccoloList$RobustLabels
+    
+    SD.Overall <- sd(PiccoloList$ClusterZScoresMat)
+    
+    PredictedLabels[NACells] <- as.numeric(rownames(PiccoloList$ClusterZScoresMat))[apply(PiccoloList$ClusterZScoresMat[,NACells],2,function(x) which(x == max(x) & x > SD.Overall)[1])]
+    
+    NACells <- which(is.na(PredictedLabels))
+    
+    PiccoloList$PredictedLabels <- PredictedLabels
+    
+    message(paste0("There are ",length(NACells), " cells (",signif(length(NACells)/ncol(PiccoloList$ClusterZScoresMat) * 100,digits = 2),"%) ","labeled NA after final relabeling."))
+  } else if (length(NACells) == 1){
+    
+    message("Attempting to assign label to NA cells...")
+    
+    PredictedLabels <- PiccoloList$RobustLabels
+    
+    SD.Overall <- sd(PiccoloList$ClusterZScoresMat)
+    
+    ValVec <- PiccoloList$ClusterZScoresMat[,NACells]
+    names(ValVec) <- rownames(PiccoloList$ClusterZScoresMat)
+    
+    PredictedLabels[NACells] <- as.numeric(names(ValVec))[which(ValVec == max(ValVec) & ValVec > SD.Overall)[1]]
+    
+    NACells <- which(is.na(PredictedLabels))
+    
+    PiccoloList$PredictedLabels <- PredictedLabels
+    
+    message(paste0("There are ",length(NACells), " cells (",signif(length(NACells)/ncol(PiccoloList$ClusterZScoresMat) * 100,digits = 2),"%) ","labeled NA after final relabeling."))
+  } else {
+    PiccoloList$PredictedLabels <- PiccoloList$RobustLabels
+  }
+
+  
+  return(PiccoloList)
+}
+
 
 
 
